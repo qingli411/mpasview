@@ -9,7 +9,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from .plot import plot_basemap, ug_pcolor_cell, ug_pcolor_vertex
-from .utils import get_region_llrange
+from .utils import *
 
 #--------------------------------
 # MPASMesh
@@ -43,33 +43,36 @@ class MPASMesh:
             self.ncells        = fmesh.dims['nCells']
             self.nedges        = fmesh.dims['nEdges']
             self.nvertices     = fmesh.dims['nVertices']
-            self.cellid        = fmesh.variables['indexToCellID']
-            self.edgeid        = fmesh.variables['indexToEdgeID']
-            self.vertexid      = fmesh.variables['indexToVertexID']
+            self.cellid        = fmesh.variables['indexToCellID'].values
+            self.edgeid        = fmesh.variables['indexToEdgeID'].values
+            self.vertexid      = fmesh.variables['indexToVertexID'].values
             if self.on_sphere:
-                self.xcell     = xr.ufuncs.degrees(fmesh.variables['lonCell'])
-                self.ycell     = xr.ufuncs.degrees(fmesh.variables['latCell'])
-                self.xedge     = xr.ufuncs.degrees(fmesh.variables['lonEdge'])
-                self.yedge     = xr.ufuncs.degrees(fmesh.variables['latEdge'])
-                self.xvertex   = xr.ufuncs.degrees(fmesh.variables['lonVertex'])
-                self.yvertex   = xr.ufuncs.degrees(fmesh.variables['latVertex'])
+                self.xcell     = np.degrees(fmesh.variables['lonCell'].values)
+                self.ycell     = np.degrees(fmesh.variables['latCell'].values)
+                self.xedge     = np.degrees(fmesh.variables['lonEdge'].values)
+                self.yedge     = np.degrees(fmesh.variables['latEdge'].values)
+                self.xvertex   = np.degrees(fmesh.variables['lonVertex'].values)
+                self.yvertex   = np.degrees(fmesh.variables['latVertex'].values)
             else:
-                self.xcell     = fmesh.variables['xCell']
-                self.ycell     = fmesh.variables['yCell']
-                self.xedge     = fmesh.variables['xEdge']
-                self.yedge     = fmesh.variables['yEdge']
-                self.xvertex   = fmesh.variables['xVertex']
-                self.yvertex   = fmesh.variables['yVertex']
-            self.acell         = fmesh.variables['areaCell']
-            self.adual         = fmesh.variables['areaTriangle']
-            self.nedges_cell   = fmesh.variables['nEdgesOnCell']
-            self.edges_cell    = fmesh.variables['edgesOnCell']
-            self.vertices_cell = fmesh.variables['verticesOnCell']
-            self.dc_edge       = fmesh.variables['dcEdge']
-            self.dv_edge       = fmesh.variables['dvEdge']
-            self.cells_edge    = fmesh.variables['cellsOnEdge']
-            self.cells_vertex  = fmesh.variables['cellsOnVertex']
-            self.edges_vertex  = fmesh.variables['edgesOnVertex']
+                self.xcell     = fmesh.variables['xCell'].values
+                self.ycell     = fmesh.variables['yCell'].values
+                self.xedge     = fmesh.variables['xEdge'].values
+                self.yedge     = fmesh.variables['yEdge'].values
+                self.xvertex   = fmesh.variables['xVertex'].values
+                self.yvertex   = fmesh.variables['yVertex'].values
+            self.acell         = fmesh.variables['areaCell'].values
+            self.adual         = fmesh.variables['areaTriangle'].values
+            self.nedges_cell   = fmesh.variables['nEdgesOnCell'].values
+            self.edges_cell    = fmesh.variables['edgesOnCell'].values
+            self.vertices_cell = fmesh.variables['verticesOnCell'].values
+            self.dc_edge       = fmesh.variables['dcEdge'].values
+            self.dv_edge       = fmesh.variables['dvEdge'].values
+            self.cells_edge    = fmesh.variables['cellsOnEdge'].values
+            self.vertices_edge = fmesh.variables['verticesOnEdge'].values
+            self.cells_vertex  = fmesh.variables['cellsOnVertex'].values
+            self.edges_vertex  = fmesh.variables['edgesOnVertex'].values
+        self.edge_sign_cell = None
+        self.edge_sign_vertex = None
 
     def __repr__(self):
         """Formatted print
@@ -82,6 +85,81 @@ class MPASMesh:
         summary.append('{:>10s}: {}'.format('on sphere',self.on_sphere))
         return '\n'.join(summary)
 
+    def get_edge_sign_on_cell(self):
+        """Get the sign of edges on cells
+
+        """
+        # only compute the sign of edges if not already computed
+        if self.edge_sign_cell is None:
+            self.edge_sign_cell = get_edge_sign_on_cell(
+                    cellid = self.cellid,
+                    nedges_cell = self.nedges_cell,
+                    edges_cell = self.edges_cell,
+                    cells_edge = self.cells_edge,
+                    )
+
+    def get_edge_sign_on_vertex(self):
+        """Get the sign of edges on vertices
+
+        """
+        # only compute the sign of edges if not already computed
+        if self.edge_sign_vertex is None:
+            self.edge_sign_vertex = get_edge_sign_on_vertex(
+                    vertexid = self.vertexid,
+                    edges_vertex = self.edges_vertex,
+                    vertices_edge = self.vertices_edge,
+                    )
+
+    def get_shortest_path(
+            self,
+            xP0,
+            yP0,
+            xP1,
+            yP1,
+            npoint_ref=1,
+            debug_info=False,
+            ):
+        """ Get the shorted path that connects two endpoints.
+
+        :xP0: (float) x-coordinate of endpoint 0
+        :yP0: (float) y-coordinate of endpoint 0
+        :xP1: (float) x-coordinate of endpoint 1
+        :yP1: (float) y-coordinate of endpoint 1
+        :npoint_ref: (int, optional) number of reference points along the straight line or great circle (on a sphere)
+        :debug_info: (bool, optional) print out additional debug information if True
+
+        """
+        # find indices of endpoints
+        idxP0 = get_index_xy(xP0, yP0, self.xvertex, self.yvertex)
+        idxP1 = get_index_xy(xP1, yP1, self.xvertex, self.yvertex)
+        print('Vertex closest to P0: {:8.5f} {:8.5f}'.format(self.xvertex[idxP0], self.yvertex[idxP0]))
+        print('Vertex closest to P1: {:8.5f} {:8.5f}'.format(self.xvertex[idxP1], self.yvertex[idxP1]))
+        # find reference points
+        x_ref, y_ref = gc_interpolate(self.xvertex[idxP0], self.yvertex[idxP0], \
+                                          self.xvertex[idxP1], self.yvertex[idxP1], npoint_ref+2)
+        x_ref = np.mod(x_ref[1:-1], 360)
+        y_ref = np.mod(y_ref[1:-1], 360)
+        # initialize an empty path
+        out = Path()
+        # loop over reference points, find the path between these points
+        idx_sp0 = idxP0
+        for i in np.arange(npoint_ref):
+            idx_vertex = np.minimum(i,1)
+            idx_sp1 = get_index_xy(x_ref[i], y_ref[i], self.xvertex, self.yvertex)
+            print(' - Vertex closest to RefP{:d}: {:8.5f} {:8.5f}'.format(i+1, self.xvertex[idx_sp1], self.yvertex[idx_sp1]))
+            out_i = get_path(idx_sp0, idx_sp1,
+                    self.xvertex, self.yvertex, self.xedge, self.yedge,
+                    self.vertexid, self.edges_vertex, self.vertices_edge,
+                    self.on_sphere, debug_info)
+            out = out + out_i
+            idx_sp0 = idx_sp1
+        # last path, start from end points P1
+        out_n = get_path(idxP1, idx_sp1,
+                self.xvertex, self.yvertex, self.xedge, self.yedge,
+                self.vertexid, self.edges_vertex, self.vertices_edge,
+                self.on_sphere, debug_info)
+        out = out + out_n.reverse()
+        return out
 
 #--------------------------------
 # MPASOMap
@@ -243,13 +321,13 @@ class MPASOMap:
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
-                    vertexid = np.asarray(self.mesh.vertexid)
-                    xvertex = np.asarray(self.mesh.xvertex)
+                    vertexid = self.mesh.vertexid
+                    xvertex = self.mesh.xvertex
                     if lon_wrapping:
                         xvertex = np.where(xvertex < dlon_wrapping, xvertex+360., xvertex)
-                    yvertex = np.asarray(self.mesh.yvertex)
-                    nedges_cell = np.asarray(self.mesh.nedges_cell[mask])
-                    vertices_cell = np.asarray(self.mesh.vertices_cell[mask,:])
+                    yvertex = self.mesh.yvertex
+                    nedges_cell = self.mesh.nedges_cell[mask]
+                    vertices_cell = self.mesh.vertices_cell[mask,:]
                     xx, yy = m(xvertex, yvertex)
                     fig = ug_pcolor_cell(axis=m.ax, data=data,
                             vertexid=vertexid, xvertex=xx, yvertex=yy,
@@ -257,12 +335,12 @@ class MPASOMap:
                             linewidth=0.1, norm=norm, cmap=plt.cm.get_cmap(cmap),
                             **kwargs)
                 else: # self.position == 'vertex'
-                    cellid = np.asarray(self.mesh.cellid)
-                    xcell = np.asarray(self.mesh.xcell)
+                    cellid = self.mesh.cellid
+                    xcell = self.mesh.xcell
                     if lon_wrapping:
                         xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
-                    ycell = np.asarray(self.mesh.ycell)
-                    cells_vertex = np.asarray(self.mesh.cells_vertex[mask,:])
+                    ycell = self.mesh.ycell
+                    cells_vertex = self.mesh.cells_vertex[mask,:]
                     xx, yy = m(xcell, ycell)
                     fig = ug_pcolor_vertex(axis=m.ax, data=data,
                             cellid=cellid, xcell=xx, ycell=yy,
