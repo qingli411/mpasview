@@ -3,13 +3,32 @@
 #--------------------------------
 
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 from scipy import spatial
 
 #--------------------------------
 # utility
 #--------------------------------
+
+def get_region_llrange(region):
+    """Get the range of longitude and latitude in a region.
+
+    :region:    (str) region name
+    :returns:   (tuple) (lon_min, lon_max, lat_min, lat_max)
+
+    """
+    llrange = {
+            'Global': (  0., 360., -90., 90.),
+            'Arctic': (  0., 360.,  45., 90.),
+            'LabSea': (270., 356.,  36., 75.),
+            'TropicalPacific':  (130., 290., -20., 20.),
+            'TropicalAtlantic': (310., 380., -20., 20.),
+            }
+    if region in llrange.keys():
+        return llrange.get(region)
+    else:
+        raise ValueError('Region \'{:s}\' not found.\n'.format(region) \
+                + '- Supported region names:\n' \
+                + '  ' + ', '.join(switcher.keys()))
 
 def get_index_latlon(
         loni,
@@ -160,121 +179,4 @@ def gc_interpolate(
     lat_out = np.arctan2(z, np.sqrt(x**2 + y**2))
     lon_out = np.arctan2(y, x)
     return np.degrees(lon_out), np.degrees(lat_out)
-
-#--------------------------------
-# plot
-#--------------------------------
-
-def plot_basemap(
-        region='Global',
-        axis=None,
-        ):
-    """Plot basemap
-
-    :region:    (str) region name
-    :axis:      (matplotlib.axes, optional) axis to plot figure on
-    :return:    (Basemap) basemap
-
-    """
-    # use curret axis if not specified
-    if axis is None:
-        axis = plt.gca()
-    # plot basemap
-    switcher = {
-            'Global': _plot_basemap_global,
-            'Arctic': _plot_basemap_arctic,
-            'LabSea': _plot_basemap_labsea,
-            'TropicalPacific': _plot_basemap_tropicalpacific,
-            'TropicalAtlantic': _plot_basemap_tropicalatlantic,
-            }
-    if region in switcher.keys():
-        return switcher.get(region)(axis)
-    else:
-        raise ValueError('Region \'{:s}\' not found.\n'.format(region) \
-                + '- Supported region names:\n' \
-                + '  ' + ', '.join(switcher.keys()))
-
-def _plot_basemap_global(axis):
-    """Plot basemap for global region
-
-    """
-    # global map
-    m = Basemap(projection='cyl', llcrnrlat=-80., urcrnrlat=80.,
-            llcrnrlon=20., urcrnrlon=380., ax=axis)
-    # plot coastlines, draw label meridians and parallels.
-    m.drawcoastlines(zorder=3)
-    m.drawmapboundary(fill_color='lightgray')
-    m.fillcontinents(color='gray',lake_color='lightgray', zorder=2)
-    m.drawparallels(np.arange(-80.,81.,30.), labels=[1,0,0,1])
-    m.drawmeridians(np.arange(-180.,181.,60.), labels=[1,0,0,1])
-    return m
-
-def _plot_basemap_arctic(axis):
-    """Plot basemap for Arctic
-
-    """
-    m = Basemap(projection='npstere', boundinglat=50, lon_0=0,
-                resolution='l', ax=axis)
-    # plot coastlines, draw label meridians and parallels.
-    m.drawcoastlines(zorder=3)
-    m.drawmapboundary(fill_color='lightgray')
-    m.fillcontinents(color='gray',lake_color='lightgray', zorder=2)
-    m.drawparallels(np.arange(-80.,81.,10.), labels=[0,0,0,0])
-    m.drawmeridians(np.arange(-180.,181.,20.), labels=[1,0,1,1])
-    return m
-
-def _plot_basemap_region(
-        axis,
-        lon_ll,
-        lat_ll,
-        lon_ur,
-        lat_ur,
-        projection,
-        ):
-    """Plot basemap for region
-
-    :axis:          (matplotlib.axes, optional) axis to plot figure on
-    :lon_ll:        (float) longitude at lower-left in degrees
-    :lat_ll:        (float) latitude at lower-left in degrees
-    :lon_ur:        (float) longitude at upper-right in degrees
-    :lat_ur:        (float) latitude at upper-right in degrees
-    :projection:    (str) projection type
-    :return:        (Basemap) basemap
-
-    """
-    # regional map
-    lon_c = 0.5*(lon_ll+lon_ur)
-    lat_c = 0.5*(lat_ll+lat_ur)
-    m = Basemap(projection=projection, llcrnrlon=lon_ll, llcrnrlat=lat_ll,
-                urcrnrlon=lon_ur, urcrnrlat=lat_ur, resolution='l',
-                lon_0=lon_c, lat_0=lat_c, ax=axis)
-    # plot coastlines, draw label meridians and parallels.
-    m.drawcoastlines(zorder=3)
-    m.drawmapboundary(fill_color='lightgray')
-    m.fillcontinents(color='gray',lake_color='lightgray', zorder=2)
-    m.drawparallels(np.arange(-80.,81.,10.), labels=[1,0,0,1])
-    m.drawmeridians(np.arange(-180.,181.,10.), labels=[1,0,0,1])
-    return m
-
-def _plot_basemap_labsea(axis):
-    """Plot basemap for Labrador Sea
-
-    """
-    return _plot_basemap_region(axis, lon_ll=296.0, lat_ll=36.0, \
-                                lon_ur=356.0, lat_ur=70.0, projection='cass')
-
-def _plot_basemap_tropicalpacific(axis):
-    """Plot basemap for Tropical Pacific
-
-    """
-    return _plot_basemap_region(axis, lon_ll=130.0, lat_ll=-20.0, \
-                                lon_ur=290.0, lat_ur=20.0, projection='cyl')
-
-def _plot_basemap_tropicalatlantic(axis):
-    """Plot basemap for Tropical Atlantic
-
-    """
-    return _plot_basemap_region(axis, lon_ll=320.0, lat_ll=-20.0, \
-                                lon_ur=370.0, lat_ur=20.0, projection='cyl')
-
 
