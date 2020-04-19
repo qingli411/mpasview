@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from .plot import plot_basemap, ug_pcolor_cell, ug_pcolor_vertex
+from .plot import *
 from .utils import *
 
 #--------------------------------
@@ -38,6 +38,12 @@ class MPASMesh:
                 self.on_sphere = True
             else:
                 self.on_sphere = False
+            if fmesh.attrs['is_periodic'] == 'YES':
+                self.is_periodic = True
+                self.xperiod = fmesh.attrs['x_period']
+                self.yperiod = fmesh.attrs['y_period']
+            else:
+                self.is_periodic = False
             self.maxedges_cell = fmesh.dims['maxEdges']
             self.vertexdegree  = fmesh.dims['vertexDegree']
             self.ncells        = fmesh.dims['nCells']
@@ -79,10 +85,14 @@ class MPASMesh:
 
         """
         summary = [str(self.__class__)+':']
-        summary.append('{:>10s}: {:s}'.format('name', self.name))
+        summary.append('{:>12s}: {:s}'.format('name', self.name))
         for attr in ['ncells', 'nedges', 'nvertices']:
-            summary.append('{:>10s}: {:d}'.format(attr, getattr(self, attr)))
-        summary.append('{:>10s}: {}'.format('on sphere',self.on_sphere))
+            summary.append('{:>12s}: {:d}'.format(attr, getattr(self, attr)))
+        summary.append('{:>12s}: {}'.format('on sphere',self.on_sphere))
+        if not self.on_sphere:
+            summary.append('{:>12s}: {}'.format('is periodic',self.is_periodic))
+            summary.append('{:>12s}: {}'.format('x period',self.xperiod))
+            summary.append('{:>12s}: {}'.format('y period',self.yperiod))
         return '\n'.join(summary)
 
     def get_edge_sign_on_cell(self):
@@ -172,11 +182,11 @@ class MPASOMap:
 
     def __init__(
             self,
-            data = None,
+            data = np.nan,
             name = '',
             units = '',
-            lon = None,
-            lat = None,
+            lon = np.nan,
+            lat = np.nan,
             mesh = None,
             position = 'cell',
             mask = None,
@@ -189,22 +199,22 @@ class MPASOMap:
         :lon:       (array like) longitude array in degrees
         :lat:       (array like) latitude array in degrees
         :mesh:      (MPASMesh) mesh object
-        :position:  (str) position of data (cell (default), edge, vertex)
+        :position:  (str) position of data (cell (default), or vertex)
         :mask:      (array like) mask
 
         """
-        self.data = data
+        self.data = np.asarray(data)
         self.name = name
         self.units = units
         self.mesh = mesh
         self.position = position
         self.mask = mask
         if self.mesh is None:
-            self.lon = lon
-            self.lat = lat
+            self.lon = np.asarray(lon)
+            self.lat = np.asarray(lat)
         else:
             assert isinstance(self.mesh, MPASMesh), 'MPASMesh object is required for mesh, got {}'.format(type(self.mesh))
-            assert self.mesh.on_sphere, 'Mesh not on sphere'
+            assert self.mesh.on_sphere, 'Mesh not on sphere, use MPASODomain'
             if self.position == 'cell':
                 self.lon = mesh.xcell
                 self.lat = mesh.ycell
@@ -223,7 +233,7 @@ class MPASOMap:
         summary.append('{:>8s}: '.format('name')+getattr(self, 'name'))
         summary.append('{:>8s}: '.format('units')+getattr(self, 'units'))
         for attr in ['data', 'lon', 'lat']:
-            darr = np.asarray(getattr(self, attr))
+            darr = getattr(self, attr)
             if size > 4:
                 dataview = '[{:f} {:f} ... {:f} {:f}]'.format(darr[0], darr[1], darr[-2], darr[-1])
             else:
@@ -279,9 +289,9 @@ class MPASOMap:
         # longitude wrapping
         lon_wrapping = False
         # convert to numpy array
-        data = np.asarray(self.data)
-        lon  = np.asarray(self.lon)
-        lat  = np.asarray(self.lat)
+        data = self.data
+        lon  = self.lon
+        lat  = self.lat
         if self.mask is None:
             # region mask
             if region == 'Global':
@@ -356,4 +366,203 @@ class MPASOMap:
             cb.formatter.set_powerlimits((-4, 4))
             cb.update_ticks()
         return m
+
+#--------------------------------
+# MPASODomain
+#--------------------------------
+
+class MPASODomain:
+    """A data type describing a horizontal domain of MPAS-Ocean field
+
+    """
+
+    def __init__(
+            self,
+            data = np.nan,
+            name = '',
+            units = '',
+            x = np.nan,
+            y = np.nan,
+            mesh = None,
+            position = 'cell',
+            mask = None,
+            ):
+        """Initialization of MPASOMap
+
+        :data:      (array like) data array
+        :name:      (str) name of data
+        :units:     (str) units of data
+        :x:         (array like) x-coordinate
+        :y:         (array like) y-coordinate
+        :mesh:      (MPASMesh) mesh object
+        :position:  (str) position of data (cell (default), or vertex)
+        :mask:      (array like) mask
+
+        """
+
+        self.data = np.asarray(data)
+        self.name = name
+        self.units = units
+        self.mesh = mesh
+        self.position = position
+        self.mask = mask
+        if self.mesh is None:
+            self.x = np.asarray(x)
+            self.y = np.asarray(y)
+        else:
+            assert isinstance(self.mesh, MPASMesh), 'MPASMesh object is required for mesh, got {}'.format(type(self.mesh))
+            assert not self.mesh.on_sphere, 'Mesh on sphere, use MPASOMap'
+            if self.position == 'cell':
+                self.x = mesh.xcell
+                self.y = mesh.ycell
+            elif self.position == 'vertex':
+                self.x = mesh.xvertex
+                self.y = mesh.yvertex
+            else:
+                raise ValueError('Position should be \'cell\' (default), or \'vertex\', got \'{:s}\''.format(self.position))
+
+    def __repr__(self):
+        """Formatted print
+
+        """
+        size = self.data.size
+        summary = [str(self.__class__)+' (size={}):'.format(size)]
+        summary.append('{:>8s}: '.format('name')+getattr(self, 'name'))
+        summary.append('{:>8s}: '.format('units')+getattr(self, 'units'))
+        for attr in ['data', 'x', 'y']:
+            darr = getattr(self, attr)
+            if size > 4:
+                dataview = '[{:f} {:f} ... {:f} {:f}]'.format(darr[0], darr[1], darr[-2], darr[-1])
+            else:
+                dataview = str(darr)
+            summary.append('{:>8s}: '.format(attr)+dataview)
+        if self.mesh is not None:
+            summary.append('{:>8s}: '.format('mesh')+self.mesh.name)
+        return '\n'.join(summary)
+
+    def __getitem__(self, index):
+        """Slicing
+
+        """
+        out = copy.copy(self)
+        for attr in ['data', 'x', 'y']:
+            setattr(out, attr, getattr(self, attr)[index])
+        return out
+
+    def plot(
+            self,
+            axis = None,
+            levels = None,
+            ptype = 'contourf',
+            cmap = 'viridis',
+            colorbar = True,
+            **kwargs,
+            ):
+        """Plot figure
+
+        :axis:      (matplotlib.axes, optional) axis to plot the figure on
+        :leveles:   (array-like, optional) list of levels
+        :ptype:     (str, optional) plot type, contourf by default
+        :cmap:      (str, optional) colormap, viridis by default
+        :colorbar:  (bool, optional) do not add colorbar if False
+        :**kwargs:  (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
+        :return:    (mpl_toolkits.basemap.Basemap) figure handle
+
+        """
+        # check input
+        if self.mesh is None and ptype != 'contourf':
+            raise ValueError('Only \'contourf\' plot is supported without a mesh')
+        # use curret axis if not specified
+        if axis is None:
+            axis = plt.gca()
+        # apply mask
+        if self.mask is not None:
+            data = self.data[self.mask]
+            x    =    self.x[self.mask]
+            y    =    self.y[self.mask]
+        else:
+            data = self.data
+            x    = self.x
+            y    = self.y
+        # print message
+        print('Plotting \'{:s}\' on x-y domain ({:d} data points)...'.format(self.name+' ('+self.units+')', data.size))
+        # manually mapping levels to the colormap if levels is passed in,
+        if levels is not None:
+            bounds = np.array(levels)
+            norm = colors.BoundaryNorm(boundaries=bounds, ncolors=256)
+        else:
+            norm = None
+        # simple plot if mesh is not defined
+        if self.mesh is None or ptype == 'contourf':
+            fig = axis.tricontourf(x, y, data, levels=levels, extend='both',
+                        norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
+        else:
+            if ptype == 'pcolor':
+                if self.position == 'cell':
+                    vertexid = self.mesh.vertexid
+                    if self.mask is not None:
+                        nedges_cell = self.mesh.nedges_cell[self.mask]
+                        vertices_cell = self.mesh.vertices_cell[self.mask,:]
+                    else:
+                        nedges_cell = self.mesh.nedges_cell
+                        vertices_cell = self.mesh.vertices_cell
+                    if self.mesh.is_periodic:
+                        fig = ug_pcolor_cell_periodic(axis=axis, data=data,
+                                xperiod=self.mesh.xperiod,
+                                yperiod=self.mesh.yperiod,
+                                vertexid=self.mesh.vertexid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                xcell=self.mesh.xcell,
+                                ycell=self.mesh.ycell,
+                                dv_edge=self.mesh.dv_edge,
+                                nedges_cell=nedges_cell,
+                                vertices_cell=vertices_cell,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+                    else:
+                        fig = ug_pcolor_cell(axis=axis, data=data,
+                                vertexid=self.mesh.vertexid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                nedges_cell=nedges_cell,
+                                vertices_cell=vertices_cell,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+                else: # self.position == 'vertex'
+                    cellid = self.mesh.cellid
+                    if self.mask is not None:
+                        cells_vertex = self.mesh.cells_vertex[self.mask,:]
+                    else:
+                        cells_vertex = self.mesh.cells_vertex
+                    if self.mesh.is_periodic:
+                        fig = ug_pcolor_vertex_periodic(axis=axis, data=data,
+                                xperiod=self.mesh.xperiod,
+                                yperiod=self.mesh.yperiod,
+                                cellid=self.mesh.cellid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                xcell=self.mesh.xcell,
+                                ycell=self.mesh.ycell,
+                                dv_edge=self.mesh.dv_edge,
+                                cells_vertex=cells_vertex,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+                    else:
+                        fig = ug_pcolor_vertex(axis=axis, data=data,
+                                cellid=self.mesh.cellid,
+                                xcell=self.mesh.xcell,
+                                ycell=self.mesh.ycell,
+                                cells_vertex=cells_vertex,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+            else:
+                raise ValueError('Plot type \'{:s}\' not supported'.format(ptype))
+        # add colorbar
+        if colorbar:
+            cb = plt.colorbar(fig, ax=axis)
+            cb.set_label('{} ({})'.format(self.name, self.units))
+            cb.formatter.set_powerlimits((-4, 4))
+            cb.update_ticks()
+        return fig
 

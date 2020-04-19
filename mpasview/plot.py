@@ -223,3 +223,164 @@ def ug_pcolor_vertex(
     pc.set_array(data)
     fig = axis.add_collection(pc)
     return fig
+
+def ug_pcolor_cell_periodic(
+        axis = None,
+        data = np.nan,
+        xperiod = 0,
+        yperiod = 0,
+        vertexid = np.nan,
+        xvertex = np.nan,
+        yvertex = np.nan,
+        xcell = np.nan,
+        ycell = np.nan,
+        dv_edge = np.nan,
+        nedges_cell = np.nan,
+        vertices_cell = np.nan,
+        **kwargs,
+        ):
+    """Pseudocolor plot on unstructured grid (cells, periodic)
+
+    :axis:          (matplotlib.axes, optional) axis to plot the figure on
+    :data:          (array-like) data to plot
+    :vertexid:      (array-like) vertex ID
+    :xperiod:       (float) period in x-direction
+    :yperiod:       (float) period in y-direction
+    :xvertex:       (array-like) x-coordinate of vertices
+    :yvertex:       (array-like) y-coordinate of vertices
+    :xcell:         (array-like) x-coordinate of cells
+    :ycell:         (array-like) y-coordinate of cells
+    :dv_edge:       (array like) length of edges, distance between vertices on edge
+    :nedges_cell:   (array-like) number of edges on cells
+    :vertices_cell: (array-like) vertices on cells
+    :**kwargs:      (keyword arguments, optional) passed along to the PatchCollection constructor
+    :return:        (matplotlib.collections.PatchCollection)
+
+    """
+    # use curret axis if not specified
+    if axis is None:
+        axis = plt.gca()
+    # maximum edge length
+    dv_edge_small = 1.0
+    dv_edge_max = dv_edge.max() + dv_edge_small
+    # patches
+    patches = []
+    ncell = nedges_cell.size
+    for i in np.arange(ncell):
+        vid = vertices_cell[i,:nedges_cell[i]]
+        vidx = vid-1
+        # TODO: assuming the vertex id is the index + 1 for now
+        # which is much faster than the following code using vertexid
+        # vidx = np.zeros(vid.size, np.int)
+        # for j in np.arange(vid.size):
+        #     vidx[j] = np.argwhere(vertexid==vid[j])
+        xp = xvertex[vidx]
+        yp = yvertex[vidx]
+        if any(np.abs(xp[0:-1]-xp[1:]) > dv_edge_max) or \
+           any(np.abs(yp[0:-1]-yp[1:]) > dv_edge_max):
+            xc = xcell[i]
+            yc = ycell[i]
+            for j in np.arange(nedges_cell[i]):
+                if xp[j] - xc > dv_edge_max:
+                    xp[j] -= xperiod
+                elif xp[j] - xc < -dv_edge_max:
+                    xp[j] += xperiod
+                if yp[j] - yc > dv_edge_max:
+                    yp[j] -= yperiod
+                elif yp[j] - yc < -dv_edge_max:
+                    yp[j] += yperiod
+        patches.append(Polygon(list(zip(xp,yp))))
+    # plot patch collection
+    pc = PatchCollection(patches, **kwargs)
+    pc.set_array(data)
+    if len(patches) > 64:
+        pc.set_linewidth(0.1)
+    fig = axis.add_collection(pc)
+    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+2.7*dv_edge_max])
+    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
+    axis.set_xlabel('x')
+    axis.set_ylabel('y')
+    return fig
+
+def ug_pcolor_vertex_periodic(
+        axis = None,
+        data = np.nan,
+        xperiod = 0,
+        yperiod = 0,
+        cellid = np.nan,
+        xvertex = np.nan,
+        yvertex = np.nan,
+        xcell = np.nan,
+        ycell = np.nan,
+        dv_edge = np.nan,
+        cells_vertex = np.nan,
+        **kwargs,
+        ):
+    """Pseudocolor plot on unstructured grid (dual cells centered on vertices, periodic)
+
+    :axis:          (matplotlib.axes, optional) axis to plot the figure on
+    :data:          (array-like) data to plot
+    :cellid:        (array-like) cell ID
+    :xperiod:       (float) period in x-direction
+    :yperiod:       (float) period in y-direction
+    :xvertex:       (array-like) x-coordinate of vertices
+    :yvertex:       (array-like) y-coordinate of vertices
+    :xcell:         (array-like) x-coordinate of cells
+    :ycell:         (array-like) y-coordinate of cells
+    :dv_edge:       (array like) length of edges, distance between vertices on edge
+    :cells_vertex:  (array-like) cells on vertices
+    :**kwargs:      (keyword arguments, optional) passed along to the PatchCollection constructor
+    :return:        (matplotlib.collections.PatchCollection)
+
+    """
+    # use curret axis if not specified
+    if axis is None:
+        axis = plt.gca()
+    # maximum edge length
+    dv_edge_small = 1.0
+    dv_edge_max = dv_edge.max() + dv_edge_small
+    # patches
+    patches = []
+    idx_mask = []
+    nvertex = cells_vertex.shape[0]
+    for i in np.arange(nvertex):
+        cid = cells_vertex[i,:]
+        cidx = cid-1
+        # TODO: assuming the cell id is the index + 1 for now
+        # which is much faster than the following code using cellid
+        # cidx = np.zeros(cid.size, np.int)
+        # for j in np.arange(cid.size):
+        #     cidx[j] = np.argwhere(cellid==cid[j])
+        if any(cidx == -1):
+            idx_mask.append(i)
+            continue
+        xp = xcell[cidx]
+        yp = ycell[cidx]
+        if any(np.abs(xp[0:-1]-xp[1:]) > dv_edge_max) or \
+           any(np.abs(yp[0:-1]-yp[1:]) > dv_edge_max):
+            xc = xvertex[i]
+            yc = yvertex[i]
+            for j in np.arange(3):
+                if xp[j] - xc > dv_edge_max:
+                    xp[j] = xp[j] - xperiod
+                elif xp[j] - xc < -dv_edge_max:
+                    xp[j] = xp[j] + xperiod
+                if yp[j] - yc > dv_edge_max:
+                    yp[j] = yp[j] - yperiod
+                elif yp[j] - yc < -dv_edge_max:
+                    yp[j] = yp[j] + yperiod
+        patches.append(Polygon(list(zip(xp,yp))))
+    data = np.delete(data, idx_mask)
+    # plot patch collection
+    pc = PatchCollection(patches, **kwargs)
+    pc.set_array(data)
+    if len(patches) > 64:
+        pc.set_linewidth(0.1)
+    fig = axis.add_collection(pc)
+    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+dv_edge_max])
+    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
+    axis.set_xlabel('x')
+    axis.set_ylabel('y')
+    return fig
+
+
