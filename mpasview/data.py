@@ -38,10 +38,11 @@ class MPASMesh:
                 self.on_sphere = True
             else:
                 self.on_sphere = False
-            if fmesh.attrs['is_periodic'] == 'YES':
-                self.is_periodic = True
-                self.xperiod = fmesh.attrs['x_period']
-                self.yperiod = fmesh.attrs['y_period']
+            if 'is_periodic' in fmesh.attrs:
+                if fmesh.attrs['is_periodic'] == 'YES':
+                    self.is_periodic = True
+                    self.xperiod = fmesh.attrs['x_period']
+                    self.yperiod = fmesh.attrs['y_period']
             else:
                 self.is_periodic = False
             self.maxedges_cell = fmesh.dims['maxEdges']
