@@ -70,6 +70,11 @@ class CellPath:
         return self
 
     def project_cell_center(self, axis, **kwargs):
+        """Project the cell centers along a path on axis
+
+        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+
+        """
         if isinstance(axis, Basemap):
             xx, yy = axis(self.xcell, self.ycell)
             out = axis.plot(xx, yy, **kwargs)
@@ -78,6 +83,12 @@ class CellPath:
         return out
 
     def project_cell_filled(self, axis, mesh, **kwargs):
+        """Project the cells along a path on axis
+
+        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :mesh:  (mpasview.data.MPASMesh) mesh object
+
+        """
         nedges_cell = mesh.nedges_cell[self.icell]
         vertices_cell = mesh.vertices_cell[self.icell,:]
         if isinstance(axis, Basemap):
@@ -85,10 +96,12 @@ class CellPath:
             out = ug_pcolor_cell(axis=axis.ax,
                     vertexid=mesh.vertexid, xvertex=xx, yvertex=yy,
                     nedges_cell=nedges_cell, vertices_cell=vertices_cell,
-                    # linewidth=0.1, facecolors='r',
                     **kwargs)
         else:
-            out = axis.plot(self.xcell, self.ycell, **kwargs)
+            out = ug_pcolor_cell(axis=axis,
+                    vertexid=mesh.vertexid, xvertex=mesh.xvertex, yvertex=mesh.yvertex,
+                    nedges_cell=nedges_cell, vertices_cell=vertices_cell,
+                    **kwargs)
         return out
 
 class EdgePath:
@@ -169,6 +182,12 @@ class EdgePath:
         return self
 
     def project_edge_center(self, axis, s=1, **kwargs):
+        """Project the edge centers along a path on axis
+
+        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :s:     (str) size of the scatter
+
+        """
         if isinstance(axis, Basemap):
             xx, yy = axis(self.xedge, self.yedge)
             out = axis.scatter(xx, yy, s=s, **kwargs)
@@ -177,6 +196,12 @@ class EdgePath:
         return out
 
     def project_vertex(self, axis, s=1, **kwargs):
+        """Project the vertices along a path on axis
+
+        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :s:     (str) size of the scatter
+
+        """
         if isinstance(axis, Basemap):
             xx, yy = axis(self.xvertex, self.yvertex)
             out = axis.scatter(xx, yy, s=s, **kwargs)
@@ -185,6 +210,11 @@ class EdgePath:
         return out
 
     def project_edge(self, axis, **kwargs):
+        """Project the edges along a path on axis
+
+        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+
+        """
         if isinstance(axis, Basemap):
             xx, yy = axis(self.xvertex, self.yvertex)
             out = axis.plot(xx, yy, **kwargs)
