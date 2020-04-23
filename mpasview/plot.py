@@ -131,7 +131,7 @@ def _plot_basemap_tropicalatlantic(axis):
 
 def ug_pcolor_cell(
         axis = None,
-        data = np.nan,
+        data = None,
         vertexid = np.nan,
         xvertex = np.nan,
         yvertex = np.nan,
@@ -171,13 +171,14 @@ def ug_pcolor_cell(
         patches.append(Polygon(list(zip(xp,yp))))
     # plot patch collection
     pc = PatchCollection(patches, **kwargs)
-    pc.set_array(data)
+    if data is not None:
+        pc.set_array(data)
     fig = axis.add_collection(pc)
     return fig
 
 def ug_pcolor_vertex(
         axis = None,
-        data = np.nan,
+        data = None,
         cellid = np.nan,
         xcell = np.nan,
         ycell = np.nan,
@@ -220,13 +221,14 @@ def ug_pcolor_vertex(
     data = np.delete(data, idx_mask)
     # plot patch collection
     pc = PatchCollection(patches, **kwargs)
-    pc.set_array(data)
+    if data is not None:
+        pc.set_array(data)
     fig = axis.add_collection(pc)
     return fig
 
 def ug_pcolor_cell_periodic(
         axis = None,
-        data = np.nan,
+        data = None,
         xperiod = 0,
         yperiod = 0,
         vertexid = np.nan,
@@ -292,7 +294,8 @@ def ug_pcolor_cell_periodic(
         patches.append(Polygon(list(zip(xp,yp))))
     # plot patch collection
     pc = PatchCollection(patches, **kwargs)
-    pc.set_array(data)
+    if data is not None:
+        pc.set_array(data)
     if len(patches) > 64:
         pc.set_linewidth(0.1)
     fig = axis.add_collection(pc)
@@ -304,7 +307,7 @@ def ug_pcolor_cell_periodic(
 
 def ug_pcolor_vertex_periodic(
         axis = None,
-        data = np.nan,
+        data = None,
         xperiod = 0,
         yperiod = 0,
         cellid = np.nan,
@@ -373,7 +376,8 @@ def ug_pcolor_vertex_periodic(
     data = np.delete(data, idx_mask)
     # plot patch collection
     pc = PatchCollection(patches, **kwargs)
-    pc.set_array(data)
+    if data is not None:
+        pc.set_array(data)
     if len(patches) > 64:
         pc.set_linewidth(0.1)
     fig = axis.add_collection(pc)

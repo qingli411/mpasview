@@ -163,15 +163,17 @@ class MPASMesh:
             idx_sp1 = get_index_xy(x_ref[i], y_ref[i], self.xvertex, self.yvertex)
             print(' - Vertex closest to RefP{:d}: {:8.5f} {:8.5f}'.format(i+1, self.xvertex[idx_sp1], self.yvertex[idx_sp1]))
             out_i = get_path_edge(idx_sp0, idx_sp1,
-                    self.xvertex, self.yvertex, self.xedge, self.yedge,
-                    self.vertexid, self.edges_vertex, self.vertices_edge,
+                    self.vertexid, self.xvertex, self.yvertex,
+                    self.edgeid, self.xedge, self.yedge,
+                    self.edges_vertex, self.vertices_edge,
                     self.on_sphere, debug_info)
             out = out + out_i
             idx_sp0 = idx_sp1
         # last path, start from end points P1
         out_n = get_path_edge(idxP1, idx_sp1,
-                self.xvertex, self.yvertex, self.xedge, self.yedge,
-                self.vertexid, self.edges_vertex, self.vertices_edge,
+                self.vertexid, self.xvertex, self.yvertex,
+                self.edgeid, self.xedge, self.yedge,
+                self.edges_vertex, self.vertices_edge,
                 self.on_sphere, debug_info)
         out = out + out_n.reverse()
         return out
@@ -215,14 +217,14 @@ class MPASMesh:
             idx_sp1 = get_index_xy(x_ref[i], y_ref[i], self.xcell, self.ycell)
             print(' - Cell closest to RefP{:d}: {:8.5f} {:8.5f}'.format(i+1, self.xcell[idx_sp1], self.ycell[idx_sp1]))
             out_i = get_path_cell(idx_sp0, idx_sp1,
-                    self.xcell, self.ycell, self.cellid,
+                    self.cellid, self.xcell, self.ycell,
                     self.cells_cell, self.nedges_cell,
                     self.on_sphere, debug_info)
             out = out + out_i
             idx_sp0 = idx_sp1
         # last path, start from end points P1
         out_n = get_path_cell(idxP1, idx_sp1,
-                self.xcell, self.ycell, self.cellid,
+                self.cellid, self.xcell, self.ycell,
                 self.cells_cell, self.nedges_cell,
                 self.on_sphere, debug_info)
         out = out + out_n.reverse()

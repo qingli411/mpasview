@@ -5,6 +5,7 @@
 import numpy as np
 from scipy import spatial
 from mpl_toolkits.basemap import Basemap
+from .plot import *
 
 #--------------------------------
 # Path
@@ -18,16 +19,19 @@ class CellPath:
 
     def __init__(
             self,
+            icell = [],
             xcell = [],
             ycell = [],
             ):
         """Initialization
 
+        :icell:     (array-like, optional) index of cells
         :xcell:     (array-like, optional) x-coordinate of cells
         :ycell:     (array-like, optional) y-coordinate of cells
 
         """
 
+        self.icell = list(icell)
         self.xcell = list(xcell)
         self.ycell = list(ycell)
 
@@ -73,6 +77,20 @@ class CellPath:
             out = axis.plot(self.xcell, self.ycell, **kwargs)
         return out
 
+    def project_cell_filled(self, axis, mesh, **kwargs):
+        nedges_cell = mesh.nedges_cell[self.icell]
+        vertices_cell = mesh.vertices_cell[self.icell,:]
+        if isinstance(axis, Basemap):
+            xx, yy = axis(mesh.xvertex, mesh.yvertex)
+            out = ug_pcolor_cell(axis=axis.ax,
+                    vertexid=mesh.vertexid, xvertex=xx, yvertex=yy,
+                    nedges_cell=nedges_cell, vertices_cell=vertices_cell,
+                    # linewidth=0.1, facecolors='r',
+                    **kwargs)
+        else:
+            out = axis.plot(self.xcell, self.ycell, **kwargs)
+        return out
+
 class EdgePath:
 
     """Path object defined by connected edges
@@ -81,24 +99,30 @@ class EdgePath:
 
     def __init__(
             self,
+            ivertex = [],
             xvertex = [],
             yvertex = [],
+            iedge = [],
             xedge = [],
             yedge = [],
             sign_edges = [],
             ):
         """Initialization
 
+        :ivertex:     (array-like, optional) index of vertices
         :xvertex:     (array-like, optional) x-coordinate of vertices
         :yvertex:     (array-like, optional) y-coordinate of vertices
+        :iedge:       (array-like, optional) index of edges
         :xedge:       (array-like, optional) x-coordinate of edges
         :yedge:       (array-like, optional) y-coordinate of edges
         :sign_edges:  (array-like, optional) sign of edges
 
         """
 
+        self.ivertex = list(ivertex)
         self.xvertex = list(xvertex)
         self.yvertex = list(yvertex)
+        self.iedge = list(iedge)
         self.xedge = list(xedge)
         self.yedge = list(yedge)
         self.sign_edges = list(sign_edges)
@@ -167,6 +191,7 @@ class EdgePath:
         else:
             out = axis.plot(self.xvertex, self.yvertex, **kwargs)
         return out
+
 #--------------------------------
 # Functions on mesh
 #--------------------------------
@@ -226,9 +251,9 @@ def get_edge_sign_on_vertex(
 def get_path_cell(
         cidx_p0,
         cidx_p1,
+        cellid,
         xcell,
         ycell,
-        cellid,
         cells_cell,
         nedges_cell,
         on_sphere = True,
@@ -238,9 +263,9 @@ def get_path_cell(
 
     :cidx_p0:       (int) cell index of p0
     :cidx_p1:       (int) cell index of p1
+    :cellid:        (array-like) cell ID
     :xcell:         (array-like) x-coordinate of cells
     :ycell:         (array-like) y-coordinate of cells
-    :cellid:        (array-like) cell ID
     :cells_cell:    (array-like) cells on cells
     :nedges_cell:   (array-like) number of edges on cells
     :on_sphere:     (bool, optional) the mesh is on a sphere if True
@@ -299,9 +324,11 @@ def get_path_cell(
         istep += 1
 
     # create a path on MPAS mesh
+    i_cell = idx_cells_on_path
     x_cell = xcell[idx_cells_on_path]
     y_cell = ycell[idx_cells_on_path]
     out = CellPath(
+            icell=i_cell,
             xcell=x_cell,
             ycell=y_cell,
             )
@@ -310,11 +337,12 @@ def get_path_cell(
 def get_path_edge(
         vidx_p0,
         vidx_p1,
+        vertexid,
         xvertex,
         yvertex,
+        edgeid,
         xedge,
         yedge,
-        vertexid,
         edges_vertex,
         vertices_edge,
         on_sphere = True,
@@ -324,11 +352,12 @@ def get_path_edge(
 
     :vidx_p0:       (int) vertex index of p0
     :vidx_p1:       (int) vertex index of p1
+    :vertexid:      (array-like) vertex ID
     :xvertex:       (array-like) x-coordinate of vertices
     :yvertex:       (array-like) y-coordinate of vertices
+    :edgeid:        (array-like) edge ID
     :xedge:         (array-like) x-coordinate of edges
     :yedge:         (array-like) y-coordinate of edges
-    :vertexid:      (array-like) vertex ID
     :edges_vertex:  (array-like) edges on vertices
     :vertices_edge: (array-like) vertices on edges
     :on_sphere:     (bool, optional) the mesh is on a sphere if True
@@ -403,13 +432,17 @@ def get_path_edge(
         istep += 1
 
     # create a path on MPAS mesh
+    i_edge = idx_edges_on_path
     x_edge = xedge[idx_edges_on_path]
     y_edge = yedge[idx_edges_on_path]
+    i_vertex = idx_vertices_on_path
     x_vertex = xvertex[idx_vertices_on_path]
     y_vertex = yvertex[idx_vertices_on_path]
     out = EdgePath(
+            ivertex=i_vertex,
             xvertex=x_vertex,
             yvertex=y_vertex,
+            iedge=i_edge,
             xedge=x_edge,
             yedge=y_edge,
             sign_edges=sign_edges,
