@@ -1,5 +1,5 @@
 #--------------------------------
-# Functions
+# Untilities
 #--------------------------------
 
 import numpy as np
@@ -270,27 +270,6 @@ def get_path(
 # utility
 #--------------------------------
 
-def get_region_llrange(region):
-    """Get the range of longitude and latitude in a region.
-
-    :region:    (str) region name
-    :returns:   (tuple) (lon_min, lon_max, lat_min, lat_max)
-
-    """
-    llrange = {
-            'Global': (  0., 360., -90., 90.),
-            'Arctic': (  0., 360.,  45., 90.),
-            'LabSea': (270., 356.,  36., 75.),
-            'TropicalPacific':  (130., 290., -20., 20.),
-            'TropicalAtlantic': (310., 380., -20., 20.),
-            }
-    if region in llrange.keys():
-        return llrange.get(region)
-    else:
-        raise ValueError('Region \'{:s}\' not found.\n'.format(region) \
-                + '- Supported region names:\n' \
-                + '  ' + ', '.join(switcher.keys()))
-
 def get_index_xy(
         xi,
         yi,
@@ -323,6 +302,54 @@ def get_index_xy(
             out = i
             break
     return out
+
+#--------------------------------
+# predefined regions and transects
+#--------------------------------
+
+def get_info_region(name):
+    """Get the range of longitude and latitude of a predefined region.
+
+    :name:      (str) region name
+    :returns:   (tuple) region information (lon_min, lon_max, lat_min, lat_max)
+
+    """
+    info = {
+            'Global': (  0., 360., -90., 90.),
+            'Arctic': (  0., 360.,  45., 90.),
+            'LabSea': (270., 356.,  36., 75.),
+            'TropicalPacific':  (130., 290., -20., 20.),
+            'TropicalAtlantic': (310., 380., -20., 20.),
+            }
+    if name in info.keys():
+        return info.get(name)
+    else:
+        raise ValueError('Region \'{:s}\' not found.\n'.format(name) \
+                + '- Supported region names:\n' \
+                + '  ' + ', '.join(info.keys()))
+
+def get_info_transect(name):
+    """Get the latitude/longitude of the two end points and the depth of predefiend transects.
+
+    :name:      (str) transect name
+    :returns:   (tuple) transect information (lon_P0, lat_P0, lon_P1, lat_P1, depth)
+
+    """
+    info = {
+            'AR7W':             (304.,  53.5, 312.,  61.,  4500.),
+            'Davis Strait':     (298.5, 66.5, 306.,  67.,  1500.),
+            'Hudson Strait':    (295.2, 60.4, 293.7, 61.9, 1000.),
+            'Nares Strait':     (284.2, 78.,  287.5, 78.,  1000.),
+            'Lancaster Sound':  (281.2, 73.7, 279.7, 74.6, 1000.),
+            'Jones Sound':      (279.5, 75.6, 280.,  76.2, 1000.),
+            'LabSea Center':    (296.,  63.,  320.,  50.,  4500.),
+            }
+    if name in info.keys():
+        return info.get(name)
+    else:
+        raise ValueError('Transect \'{:s}\' not found.\n'.format(name) \
+                + '- Supported transect names:\n' \
+                + '  ' + ', '.join(info.keys()))
 
 #--------------------------------
 # Great circle

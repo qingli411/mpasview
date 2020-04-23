@@ -2,6 +2,7 @@
 # MPAS data type
 #--------------------------------
 
+import os
 import copy
 import warnings
 import numpy as np
@@ -17,19 +18,20 @@ from .utils import *
 
 class MPASMesh:
 
-    """A data type for MPAS-Ocean mesh"""
+    """A data type for MPAS mesh"""
 
     def __init__(
             self,
             name = '',
             filepath = '',
             ):
-        """Initialization of MPASOMesh
+        """Initialization
 
         :name:      (str) name of the mesh
         :filepath:  (str) path of the MPAS-Ocean mesh file
 
         """
+        assert os.path.isfile(filepath), 'Please set the path of the MPAS mesh file.'
         self.name = name
         self.filepath = filepath
 
@@ -130,7 +132,7 @@ class MPASMesh:
             npoint_ref=1,
             debug_info=False,
             ):
-        """ Get the shorted path that connects two endpoints.
+        """Get the shorted path that connects two endpoints.
 
         :xP0: (float) x-coordinate of endpoint 0
         :yP0: (float) y-coordinate of endpoint 0
@@ -171,6 +173,34 @@ class MPASMesh:
                 self.on_sphere, debug_info)
         out = out + out_n.reverse()
         return out
+
+#--------------------------------
+# MPASOData
+#--------------------------------
+
+class MPASOData:
+
+    """A data type for MPAS-Ocean output data
+
+    """
+
+    def __init__(
+            self,
+            filepath = '',
+            filepath_mesh = '',
+            ):
+        """Initialization
+
+        :filepath:      (str) path of the MPAS-Ocean data file
+        :filepath_mesh: (str) path of the corresponding mesh file
+
+        """
+        assert os.path.isfile(filepath), 'Please set the path of the MPAS-Ocean data file.'
+        assert os.path.isfile(filepath_mesh), 'Please set the path of the corresponding mesh file.'
+        self.filepath = filepath
+        base_mesh = os.path.basename(filepath_mesh)
+        name_mesh = os.path.splitext(base_mesh)
+        self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
 
 #--------------------------------
 # MPASOMap
@@ -286,7 +316,7 @@ class MPASOMap:
             axis = plt.gca()
         # basemap
         m = plot_basemap(region=region, axis=axis)
-        (lonmin, lonmax, latmin, latmax) = get_region_llrange(region)
+        (lonmin, lonmax, latmin, latmax) = get_info_region(region)
         # longitude wrapping
         lon_wrapping = False
         # convert to numpy array
