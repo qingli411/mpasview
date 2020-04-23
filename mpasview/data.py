@@ -72,6 +72,7 @@ class MPASMesh:
             self.acell         = fmesh.variables['areaCell'].values
             self.adual         = fmesh.variables['areaTriangle'].values
             self.nedges_cell   = fmesh.variables['nEdgesOnCell'].values
+            self.cells_cell    = fmesh.variables['cellsOnCell'].values
             self.edges_cell    = fmesh.variables['edgesOnCell'].values
             self.vertices_cell = fmesh.variables['verticesOnCell'].values
             self.dc_edge       = fmesh.variables['dcEdge'].values
@@ -123,7 +124,7 @@ class MPASMesh:
                     vertices_edge = self.vertices_edge,
                     )
 
-    def get_shortest_path(
+    def get_shortest_path_edge(
             self,
             xP0,
             yP0,
@@ -132,7 +133,7 @@ class MPASMesh:
             npoint_ref=1,
             debug_info=False,
             ):
-        """Get the shorted path that connects two endpoints.
+        """Get the shorted path that connects two endpoints (vertices).
 
         :xP0: (float) x-coordinate of endpoint 0
         :yP0: (float) y-coordinate of endpoint 0
@@ -148,28 +149,81 @@ class MPASMesh:
         print('Vertex closest to P0: {:8.5f} {:8.5f}'.format(self.xvertex[idxP0], self.yvertex[idxP0]))
         print('Vertex closest to P1: {:8.5f} {:8.5f}'.format(self.xvertex[idxP1], self.yvertex[idxP1]))
         # find reference points
-        x_ref, y_ref = gc_interpolate(self.xvertex[idxP0], self.yvertex[idxP0], \
-                                          self.xvertex[idxP1], self.yvertex[idxP1], npoint_ref+2)
-        x_ref = np.mod(x_ref[1:-1], 360)
-        y_ref = np.mod(y_ref[1:-1], 360)
+        x_ref, y_ref = gc_interpolate(self.xvertex[idxP0], self.yvertex[idxP0],
+                self.xvertex[idxP1], self.yvertex[idxP1], npoint_ref+2)
+        if self.on_sphere:
+            x_ref = np.mod(x_ref[1:-1], 360)
+            y_ref = np.mod(y_ref[1:-1], 360)
         # initialize an empty path
-        out = Path()
+        out = EdgePath()
         # loop over reference points, find the path between these points
         idx_sp0 = idxP0
         for i in np.arange(npoint_ref):
             idx_vertex = np.minimum(i,1)
             idx_sp1 = get_index_xy(x_ref[i], y_ref[i], self.xvertex, self.yvertex)
             print(' - Vertex closest to RefP{:d}: {:8.5f} {:8.5f}'.format(i+1, self.xvertex[idx_sp1], self.yvertex[idx_sp1]))
-            out_i = get_path(idx_sp0, idx_sp1,
+            out_i = get_path_edge(idx_sp0, idx_sp1,
                     self.xvertex, self.yvertex, self.xedge, self.yedge,
                     self.vertexid, self.edges_vertex, self.vertices_edge,
                     self.on_sphere, debug_info)
             out = out + out_i
             idx_sp0 = idx_sp1
         # last path, start from end points P1
-        out_n = get_path(idxP1, idx_sp1,
+        out_n = get_path_edge(idxP1, idx_sp1,
                 self.xvertex, self.yvertex, self.xedge, self.yedge,
                 self.vertexid, self.edges_vertex, self.vertices_edge,
+                self.on_sphere, debug_info)
+        out = out + out_n.reverse()
+        return out
+
+    def get_shortest_path_cell(
+            self,
+            xP0,
+            yP0,
+            xP1,
+            yP1,
+            npoint_ref=1,
+            debug_info=False,
+            ):
+        """Get the shorted path that connects two endpoints (cell centers).
+
+        :xP0: (float) x-coordinate of endpoint 0
+        :yP0: (float) y-coordinate of endpoint 0
+        :xP1: (float) x-coordinate of endpoint 1
+        :yP1: (float) y-coordinate of endpoint 1
+        :npoint_ref: (int, optional) number of reference points along the straight line or great circle (on a sphere)
+        :debug_info: (bool, optional) print out additional debug information if True
+
+        """
+        # find indices of endpoints
+        idxP0 = get_index_xy(xP0, yP0, self.xcell, self.ycell)
+        idxP1 = get_index_xy(xP1, yP1, self.xcell, self.ycell)
+        print('Cell closest to P0: {:8.5f} {:8.5f}'.format(self.xcell[idxP0], self.ycell[idxP0]))
+        print('Cell closest to P1: {:8.5f} {:8.5f}'.format(self.xcell[idxP1], self.ycell[idxP1]))
+        # find reference points
+        x_ref, y_ref = gc_interpolate(self.xcell[idxP0], self.ycell[idxP0],
+                self.xcell[idxP1], self.ycell[idxP1], npoint_ref+2)
+        if self.on_sphere:
+            x_ref = np.mod(x_ref[1:-1], 360)
+            y_ref = np.mod(y_ref[1:-1], 360)
+        # initialize an empty path
+        out = CellPath()
+        # loop over reference points, find the path between these points
+        idx_sp0 = idxP0
+        for i in np.arange(npoint_ref):
+            idx_cell = np.minimum(i,1)
+            idx_sp1 = get_index_xy(x_ref[i], y_ref[i], self.xcell, self.ycell)
+            print(' - Cell closest to RefP{:d}: {:8.5f} {:8.5f}'.format(i+1, self.xcell[idx_sp1], self.ycell[idx_sp1]))
+            out_i = get_path_cell(idx_sp0, idx_sp1,
+                    self.xcell, self.ycell, self.cellid,
+                    self.cells_cell, self.nedges_cell,
+                    self.on_sphere, debug_info)
+            out = out + out_i
+            idx_sp0 = idx_sp1
+        # last path, start from end points P1
+        out_n = get_path_cell(idxP1, idx_sp1,
+                self.xcell, self.ycell, self.cellid,
+                self.cells_cell, self.nedges_cell,
                 self.on_sphere, debug_info)
         out = out + out_n.reverse()
         return out

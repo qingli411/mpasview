@@ -7,12 +7,75 @@ from scipy import spatial
 from mpl_toolkits.basemap import Basemap
 
 #--------------------------------
-# mesh
+# Path
 #--------------------------------
 
-class Path:
+class CellPath:
 
-    """Path object
+    """CellPath object defined by connected cells
+
+    """
+
+    def __init__(
+            self,
+            xcell = [],
+            ycell = [],
+            ):
+        """Initialization
+
+        :xcell:     (array-like, optional) x-coordinate of cells
+        :ycell:     (array-like, optional) y-coordinate of cells
+
+        """
+
+        self.xcell = list(xcell)
+        self.ycell = list(ycell)
+
+    def __add__(self, other):
+        """Connect two paths
+
+        """
+        if len(self.xcell) > 0 and len(other.xcell) > 0:
+            assert self.xcell[-1] == other.xcell[0], 'Cannot connect the two paths due to inconsitant x-coordinate of the end points'
+            assert self.ycell[-1] == other.ycell[0], 'Cannot connect the two paths due to inconsitant x-coordinate of the end points'
+        for attr in self.__dict__.keys():
+            attr_val = getattr(self, attr)
+            if isinstance(attr_val, list):
+                attr_val.extend(getattr(other, attr))
+                setattr(self, attr, attr_val)
+        return self
+
+    def __repr__(self):
+        """Formatted print
+
+        """
+        summary = [str(self.__class__)+':']
+        summary.append('{:>10s}: {:d}'.format('ncells', len(self.xcell)))
+        summary.append(' P0({} {}) -> P1({} {})'.format(self.xcell[0], self.ycell[0], self.xcell[-1], self.ycell[-1]))
+        return '\n'.join(summary)
+
+    def reverse(self):
+        """Reverse the order of path
+
+        """
+        for attr in self.__dict__.keys():
+            attr_val = getattr(self, attr)
+            if isinstance(attr_val, list):
+                attr_val.reverse()
+                setattr(self, attr, attr_val)
+        return self
+
+    def project_cell_center(self, axis, **kwargs):
+        if isinstance(axis, Basemap):
+            xx, yy = axis(self.xcell, self.ycell)
+            out = axis.plot(xx, yy, **kwargs)
+        else:
+            out = axis.plot(self.xcell, self.ycell, **kwargs)
+        return out
+
+class EdgePath:
+
+    """Path object defined by connected edges
 
     """
 
@@ -24,7 +87,7 @@ class Path:
             yedge = [],
             sign_edges = [],
             ):
-        """Initialize Path object
+        """Initialization
 
         :xvertex:     (array-like, optional) x-coordinate of vertices
         :yvertex:     (array-like, optional) y-coordinate of vertices
@@ -104,7 +167,9 @@ class Path:
         else:
             out = axis.plot(self.xvertex, self.yvertex, **kwargs)
         return out
-
+#--------------------------------
+# Functions on mesh
+#--------------------------------
 def get_edge_sign_on_cell(
         cidx = None,
         cellid = np.nan,
@@ -158,7 +223,91 @@ def get_edge_sign_on_vertex(
                 edge_sign_on_vertex[i,j] = 1
     return edge_sign_on_vertex
 
-def get_path(
+def get_path_cell(
+        cidx_p0,
+        cidx_p1,
+        xcell,
+        ycell,
+        cellid,
+        cells_cell,
+        nedges_cell,
+        on_sphere = True,
+        debug_info = False,
+        ):
+    """Get the path between two endpoints (cell centers) p0 and p1 by connecting the cells
+
+    :cidx_p0:       (int) cell index of p0
+    :cidx_p1:       (int) cell index of p1
+    :xcell:         (array-like) x-coordinate of cells
+    :ycell:         (array-like) y-coordinate of cells
+    :cellid:        (array-like) cell ID
+    :cells_cell:    (array-like) cells on cells
+    :nedges_cell:   (array-like) number of edges on cells
+    :on_sphere:     (bool, optional) the mesh is on a sphere if True
+    :debug_info:    (bool, optional) print out additional debug information if True
+
+    """
+    # initialize arrays
+    idx_cells_on_path    = []
+    # start from cell P0
+    idx_cell_now = cidx_p0
+    # record cells on path and the indices
+    idx_cells_on_path.append(idx_cell_now)
+    if debug_info:
+        print('\nCell on path ({:d}): {:8.5f} {:8.5f}'.format(idx_cell_now, xcell[idx_cell_now], ycell[idx_cell_now]))
+
+    # continue if not reached P1
+    istep = 0
+    while idx_cell_now != cidx_p1:
+        # print the step
+        if debug_info:
+            print('\nStep {:d}'.format(istep))
+        # find the indices of the neighboring cells on cell
+        cell_arr     = cells_cell[idx_cell_now,:nedges_cell[idx_cell_now]]
+        # TODO assuming the index of the cell is the cell ID - 1
+        idx_cell_arr = cell_arr-1
+        # compute the distance from P1
+        dist = []
+        idx_tmp = []
+        for idx in idx_cell_arr:
+            if idx not in idx_cells_on_path:
+                xi = xcell[idx]
+                yi = ycell[idx]
+                if on_sphere:
+                    dist.append(gc_distance(xi, yi, xcell[cidx_p1], ycell[cidx_p1]))
+                else:
+                    dist.append(np.sqrt((xi-xcell[cidx_p1])**2+(yi-ycell[cidx_p1])**2))
+                idx_tmp.append(idx)
+        # print the location of the neighboring cells
+        if debug_info:
+            print('\nCells on cell:')
+            for i, idx in enumerate(idx_tmp):
+                print('   Cell {:d} ({:d}): {:8.5f} {:8.5f} ({:10.4f})'.\
+                      format(i, idx, xcell[idx], ycell[idx], dist[i]))
+        # choose the cell from the list that is closest to cell P1
+        idx_min = np.argmin(dist)
+        idx_cell_next = idx_tmp[idx_min]
+        # print the cell on path
+        if debug_info:
+            print('\nCell on path : [Cell {:d} ({:d})] {:8.5f} {:8.5f}'.\
+                  format(idx_min, idx_cell_next, xcell[idx_cell_next], ycell[idx_cell_next]))
+        # record cell on path and the indices
+        idx_cells_on_path.append(idx_cell_next)
+        # move to next cell
+        idx_cell_now  = idx_cell_next
+        # count steps
+        istep += 1
+
+    # create a path on MPAS mesh
+    x_cell = xcell[idx_cells_on_path]
+    y_cell = ycell[idx_cells_on_path]
+    out = CellPath(
+            xcell=x_cell,
+            ycell=y_cell,
+            )
+    return out
+
+def get_path_edge(
         vidx_p0,
         vidx_p1,
         xvertex,
@@ -171,7 +320,7 @@ def get_path(
         on_sphere = True,
         debug_info = False,
         ):
-    """Get the path between two endpoints p0 and p1
+    """Get the path between two endpoints (vertices) p0 and p1 by connecting the edges
 
     :vidx_p0:       (int) vertex index of p0
     :vidx_p1:       (int) vertex index of p1
@@ -192,7 +341,7 @@ def get_path(
     sign_edges = []
     # start from vertex P0
     idx_vertex_now = vidx_p0
-    # record vortices on path and the indices
+    # record vertices on path and the indices
     idx_vertices_on_path.append(idx_vertex_now)
     if debug_info:
         print('\nVertex on path ({:d}): {:8.5f} {:8.5f}'.format(idx_vertex_now, xvertex[idx_vertex_now], yvertex[idx_vertex_now]))
@@ -205,6 +354,7 @@ def get_path(
             print('\nStep {:d}'.format(istep))
         # find the indices of the three edges on vertex
         edge_arr     = edges_vertex[idx_vertex_now,:]
+        # TODO assuming the index of the edge is the edge ID - 1
         idx_edge_arr = edge_arr-1
         # compute the distance from P1
         dist = []
@@ -257,7 +407,7 @@ def get_path(
     y_edge = yedge[idx_edges_on_path]
     x_vertex = xvertex[idx_vertices_on_path]
     y_vertex = yvertex[idx_vertices_on_path]
-    out = Path(
+    out = EdgePath(
             xvertex=x_vertex,
             yvertex=y_vertex,
             xedge=x_edge,
