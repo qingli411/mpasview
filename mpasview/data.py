@@ -393,15 +393,18 @@ class MPASOMap:
                 else:
                     region_mask = (lon >= lonmin) & (lon <= lonmax) & (lat >= latmin) & (lat <= latmax)
             # nan mask
-            nan_mask = (~ np.isnan(data))
+            nan_mask = np.isnan(data)
             # mask
-            mask = region_mask & nan_mask
+            mask = region_mask & (~ nan_mask)
+            fill_mask = region_mask & nan_mask
         else:
             mask = self.mask
         # apply mask
-        data = data[mask]
+        data = self.data[mask]
         lon  =  lon[mask]
         lat  =  lat[mask]
+        lon_fill = self.lon[fill_mask]
+        lat_fill = self.lat[fill_mask]
         # print message
         print('Plotting \'{:s}\' map in the \'{:s}\' ({:d} data points)...'.format(self.name+' ('+self.units+')', region, data.size))
         # manually mapping levels to the colormap if levels is passed in,
@@ -412,9 +415,38 @@ class MPASOMap:
             norm = None
         # simple plot if mesh is not defined
         if self.mesh is None or ptype == 'contourf':
+            # contourf plot
+            if lon_wrapping:
+                lon = np.where(lon < dlon_wrapping, lon+360., lon)
             xx, yy = m(lon, lat)
             fig = m.contourf(xx, yy, data, tri=True, levels=levels, extend='both',
                         norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
+            # fill nan
+            if self.position == 'cell':
+                vertexid = self.mesh.vertexid
+                xvertex = self.mesh.xvertex
+                if lon_wrapping:
+                    xvertex = np.where(xvertex < dlon_wrapping, xvertex+360., xvertex)
+                yvertex = self.mesh.yvertex
+                nedges_cell = self.mesh.nedges_cell[fill_mask]
+                vertices_cell = self.mesh.vertices_cell[fill_mask,:]
+                xx, yy = m(xvertex, yvertex)
+                ug_pcolor_cell(axis=m.ax,
+                        vertexid=vertexid, xvertex=xx, yvertex=yy,
+                        nedges_cell=nedges_cell, vertices_cell=vertices_cell,
+                        linewidth=0.1, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
+            else: # self.position == 'vertex'
+                cellid = self.mesh.cellid
+                xcell = self.mesh.xcell
+                if lon_wrapping:
+                    xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
+                ycell = self.mesh.ycell
+                cells_vertex = self.mesh.cells_vertex[fill_mask,:]
+                xx, yy = m(xcell, ycell)
+                ug_pcolor_vertex(axis=m.ax, data=data,
+                        cellid=cellid, xcell=xx, ycell=yy,
+                        cells_vertex=cells_vertex,
+                        linewidth=0.1, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
