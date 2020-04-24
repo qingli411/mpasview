@@ -529,7 +529,7 @@ def get_info_region(name):
     """
     info = {
             'Global': (  0., 360., -90., 90.),
-            'Arctic': (  0., 360.,  45., 90.),
+            'Arctic': (  0., 360.,  40., 90.),
             'LabSea': (270., 356.,  36., 75.),
             'TropicalPacific':  (130., 290., -20., 20.),
             'TropicalAtlantic': (310., 380., -20., 20.),
