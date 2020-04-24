@@ -434,7 +434,7 @@ class MPASOMap:
                 ug_pcolor_cell(axis=m.ax,
                         vertexid=vertexid, xvertex=xx, yvertex=yy,
                         nedges_cell=nedges_cell, vertices_cell=vertices_cell,
-                        linewidth=0.1, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
+                        linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
             else: # self.position == 'vertex'
                 cellid = self.mesh.cellid
                 xcell = self.mesh.xcell
@@ -446,7 +446,7 @@ class MPASOMap:
                 ug_pcolor_vertex(axis=m.ax, data=data,
                         cellid=cellid, xcell=xx, ycell=yy,
                         cells_vertex=cells_vertex,
-                        linewidth=0.1, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
+                        linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
