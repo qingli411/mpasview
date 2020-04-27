@@ -52,7 +52,7 @@ def _plot_basemap_global(axis):
     m.drawcoastlines(zorder=3)
     m.drawmapboundary(fill_color='lightgray')
     m.fillcontinents(color='gray',lake_color='lightgray', zorder=2)
-    m.drawparallels(np.arange(-80.,81.,30.), labels=[1,0,0,1])
+    m.drawparallels(np.arange(-80.,81.,20.), labels=[1,0,0,1])
     m.drawmeridians(np.arange(-180.,181.,60.), labels=[1,0,0,1])
     return m
 
