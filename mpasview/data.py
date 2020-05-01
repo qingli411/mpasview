@@ -7,6 +7,7 @@ import copy
 import warnings
 import numpy as np
 import xarray as xr
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from .plot import *
@@ -244,19 +245,200 @@ class MPASOData:
             self,
             filepath = '',
             filepath_mesh = '',
+            year_ref = 2000,
             ):
         """Initialization
 
         :filepath:      (str) path of the MPAS-Ocean data file
         :filepath_mesh: (str) path of the corresponding mesh file
+        :year_ref: (int) reference year for time
 
         """
         assert os.path.isfile(filepath), 'Please set the path of the MPAS-Ocean data file.'
         assert os.path.isfile(filepath_mesh), 'Please set the path of the corresponding mesh file.'
-        self.filepath = filepath
+        self._filepath = filepath
+        self._filepath_mesh = filepath_mesh
+        self._year_ref = year_ref
         base_mesh = os.path.basename(filepath_mesh)
         name_mesh = os.path.splitext(base_mesh)
         self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
+        self.time = self.load_time()
+        self.depth = self.load_depth()
+        self.dataset = self.load_dataset()
+
+    def load_time(
+            self,
+            ):
+        """Load the time dimension and convert to datetime64
+
+        :return:   (datetime64) time
+
+        """
+        with xr.open_dataset(self._filepath) as fdata:
+            # load time
+            xtime = fdata['xtime'].astype(str)
+            time_str = [x.strip() for x in xtime.values]
+            if int(time_str[0][:4]) < 1970:
+                time_str = ['{:04d}'.format(int(s[:4])+self._year_ref)+s[4:] for s in time_str]
+            time = pd.to_datetime(time_str, format='%Y-%m-%d_%H:%M:%S')
+        return time
+
+    def load_depth(self):
+        """Load depth dimension at cell centers
+
+        :return:  (xr.DataArray) depth
+
+        """
+        with xr.open_dataset(self._filepath_mesh) as fmesh:
+            if 'refZMid' in fmesh.variables.keys():
+                z = fmesh.data_vars['refZMid'].values
+            elif 'refBottomDepth' in fmesh.variables.keys():
+                bottom_depth = fmesh.data_vars['refBottomDepth'].values
+                z = np.zeros_like(bottom_depth)
+                z[0] = -0.5*bottom_depth[0]
+                z[1:] = -0.5*(bottom_depth[0:-1]+bottom_depth[1:])
+            else:
+                raise LookupError('Neither \'refZMid\' or \'refBottomDepth\' is found.')
+            depth = xr.DataArray(
+                    z,
+                    dims=('nVertLevels'),
+                    coords={'nVertLevels': z},
+                    attrs={'units': 'm', 'long_name': 'depth'},
+                    )
+        return depth
+
+    def load_dataset(
+            self,
+            ):
+        """Load MPASOdata as an xarray.Dataset
+
+        :return:   (xarray.Dataset) data set
+
+        """
+        with xr.open_dataset(self._filepath) as fdata:
+            out = fdata.assign_coords({
+                'Time': self.time,
+                'nVertLevels': np.arange(fdata.dims['nVertLevels']),
+                'nCells': np.arange(fdata.dims['nCells']),
+                'nEdges': np.arange(fdata.dims['nEdges']),
+                'nVertices': np.arange(fdata.dims['nVertices']),
+                })
+            if 'nVertLevelsLES' in fdata.dims:
+                out = out.assign_coords({
+                    'nVertLevelsLES': np.arange(fdata.dims['nVertLevelsLES']),
+                    })
+            return out
+
+    def load_variable_profile(
+            self,
+            varname,
+            ):
+        """Load a variable from MPASOData as an xarray.DataArray and assign vertical coordinate
+           (Currently assuming the vertical coordinate does not vary in time)
+
+        :varname: (str) variable name
+        :returns: (xarray.DataArray) variable
+
+        """
+        var = self.dataset.data_vars[varname]
+        if 'nVertLevels' not in var.dims and 'nVertLevelsLES' not in var.dims:
+            raise LookupError('\'{}\' is not a profile variables')
+        if 'LES' in varname:
+            # LES variables with different vertical levels
+            with xr.open_dataset(self._filepath_mesh) as fmesh:
+                z = fmesh.data_vars['zLES'].values[0,0,:]
+                depth = xr.DataArray(
+                        z,
+                        dims=('nVertLevelsLES'),
+                        coords={'nVertLevelsLES': z},
+                        attrs={'units': 'm', 'long_name': 'depth'},
+                        )
+            var = var.assign_coords({'nVertLevelsLES': depth})
+        else:
+            var = var.assign_coords({'nVertLevels': self.depth})
+        return var.transpose()
+
+    def load_variable_domain(
+            self,
+            varname,
+            itime = None,
+            idepth = None,
+            time = None,
+            depth = None,
+            ):
+        """Load a variable from MPASOData as an MPASODomain
+
+        :varname: (str) variable name
+        :itime:   (int) index of time dimension
+        :idepth:  (int) index of depth dimension
+        :time:    (numpy.datetime64) value of time dimension
+        :depth:   (float) value of depth dimension
+        :returns: (xarray.DataArray) variable
+
+        """
+        # default values
+        if itime is None and time is None:
+            itime = -1
+        if idepth is None and depth is None:
+            idepth = 0
+        # load variable
+        try:
+            var = self.load_variable_profile(varname)
+        except LookupError:
+            var = self.dataset.data_vars[varname]
+        # check position
+        if 'nCells' in var.dims:
+            position = 'cell'
+        elif 'nVertices' in var.dims:
+            position = 'vertex'
+        else:
+            raise LookupError('\'{}\' is not a domain variable'.format(varname))
+        print('Loading MPASODomain of \'{}\''.format(varname))
+        # check time dimension
+        if 'Time' not in var.dims:
+            data_s2 = var
+        else:
+            if isinstance(itime, int):
+                data_s1 = var.isel(Time=itime)
+            elif time is not None:
+                data_s1 = var.sel(Time=time)
+            else:
+                raise TypeError('Either \'itime\' in \'int\' or time is required')
+            print('  time = {}'.format(data_s1.coords['Time'].values))
+            # check depth dimension
+            ndim = len(data_s1.dims)
+            if ndim == 1:
+                data_s2 = data_s1
+            elif ndim == 2 and 'nVertLevels' in data_s1.dims:
+                if isinstance(idepth, int):
+                    data_s2 = data_s1.isel(nVertLevels=idepth)
+                elif depth is not None:
+                    data_s2 = data_s1.sel(nVertLevels=depth)
+                else:
+                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                print(' detph = {} ({})'.format(
+                    data_s2.coords['nVertLevels'].values,
+                    data_s2.coords['nVertLevels'].attrs['units']))
+            elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
+                if isinstance(idepth, int):
+                    data_s2 = data_s1.isel(nVertLevelsLES=idepth)
+                elif depth is not None:
+                    data_s2 = data_s1.sel(nVertLevelsLES=depth)
+                else:
+                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                print(' detph = {} ({})'.format(
+                    data_s2.coords['nVertLevelsLES'].values,
+                    data_s2.coords['nVertLevelsLES'].attrs['units']))
+            else:
+                raise LookupError('\'{}\' is not a domain variable')
+        # create MPASOMap
+        out = MPASODomain(
+                data = data_s2.values,
+                name = var.attrs['long_name'],
+                units = var.attrs['units'],
+                mesh = self.mesh,
+                )
+        return out
 
 #--------------------------------
 # MPASOMap
@@ -278,7 +460,7 @@ class MPASOMap:
             position = 'cell',
             mask = None,
             ):
-        """Initialization of MPASOMap
+        """Initialization
 
         :data:      (array like) data array
         :name:      (str) name of data
@@ -506,7 +688,7 @@ class MPASODomain:
             position = 'cell',
             mask = None,
             ):
-        """Initialization of MPASOMap
+        """Initialization
 
         :data:      (array like) data array
         :name:      (str) name of data
