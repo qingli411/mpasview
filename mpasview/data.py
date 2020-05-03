@@ -260,11 +260,22 @@ class MPASOData:
         self._filepath_mesh = filepath_mesh
         self._year_ref = year_ref
         base_mesh = os.path.basename(filepath_mesh)
-        name_mesh = os.path.splitext(base_mesh)
+        name_mesh = os.path.splitext(base_mesh)[0]
         self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
         self.time = self.load_time()
         self.depth = self.load_depth()
         self.dataset = self.load_dataset()
+
+    def __repr__(self):
+        """Formatted print
+
+        """
+        summary = [str(self.__class__)+':']
+        summary.append('{:>12s}: {:s}'.format('data path', self._filepath))
+        summary.append('{:>12s}: {:s}'.format('mesh path', self._filepath))
+        summary.append('{:>12s}: [{}...{}]'.format('time', self.time[0], self.time[-1]))
+        summary.append('{:>12s}: [{}...{}]'.format('depth', self.depth.values[0], self.depth.values[-1]))
+        return '\n'.join(summary)
 
     def load_time(
             self,
