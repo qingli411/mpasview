@@ -264,8 +264,11 @@ class MPASOData:
         name_mesh = os.path.splitext(base_mesh)[0]
         self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
         self.time = self.load_time()
-        self.depth = self.load_depth()
         self.dataset = self.load_dataset()
+        if self.dataset.dims['nVertLevels'] == 1:
+            self.depth = None
+        else:
+            self.depth = self.load_depth()
 
     def __repr__(self):
         """Formatted print
@@ -275,7 +278,8 @@ class MPASOData:
         summary.append('{:>12s}: {:s}'.format('data path', self._filepath))
         summary.append('{:>12s}: {:s}'.format('mesh path', self._filepath))
         summary.append('{:>12s}: [{}...{}]'.format('time', self.time[0], self.time[-1]))
-        summary.append('{:>12s}: [{}...{}]'.format('depth', self.depth.values[0], self.depth.values[-1]))
+        if self.depth is not None:
+            summary.append('{:>12s}: [{}...{}]'.format('depth', self.depth.values[0], self.depth.values[-1]))
         return '\n'.join(summary)
 
     def load_time(
@@ -364,6 +368,8 @@ class MPASOData:
         :returns: (xarray.DataArray) variable
 
         """
+        if self.depth is None:
+            raise LookupError('Profile variables not available in this dataset')
         var = self.dataset.data_vars[varname]
         if 'nVertLevels' not in var.dims and 'nVertLevelsLES' not in var.dims:
             raise LookupError('\'{}\' is not a profile variables')
@@ -382,7 +388,7 @@ class MPASOData:
             var = var.assign_coords({'nVertLevels': self.depth})
         return var.transpose()
 
-    def load_variable_domain(
+    def load_variable_map(
             self,
             varname,
             itime = None,
@@ -390,14 +396,14 @@ class MPASOData:
             time = None,
             depth = None,
             ):
-        """Load a variable from MPASOData as an MPASODomain
+        """Load a variable from MPASOData as an MPASOMap or MPASODomain
 
         :varname: (str) variable name
         :itime:   (int) index of time dimension
         :idepth:  (int) index of depth dimension
         :time:    (numpy.datetime64) value of time dimension
         :depth:   (float) value of depth dimension
-        :returns: (xarray.DataArray) variable
+        :returns: (MPASOMap or MPASODomain) variable
 
         """
         # default values
@@ -406,9 +412,12 @@ class MPASOData:
         if idepth is None and depth is None:
             idepth = 0
         # load variable
-        try:
-            var = self.load_variable_profile(varname)
-        except LookupError:
+        if self.depth is not None:
+            try:
+                var = self.load_variable_profile(varname)
+            except LookupError:
+                var = self.dataset.data_vars[varname]
+        else:
             var = self.dataset.data_vars[varname]
         # check position
         if 'nCells' in var.dims:
@@ -417,7 +426,7 @@ class MPASOData:
             position = 'vertex'
         else:
             raise LookupError('\'{}\' is not a domain variable'.format(varname))
-        print('Loading MPASODomain of \'{}\''.format(varname))
+        print('Loading \'{}\'...'.format(varname))
         # check time dimension
         if 'Time' not in var.dims:
             data_s2 = var
@@ -429,39 +438,50 @@ class MPASOData:
             else:
                 raise TypeError('Either \'itime\' in \'int\' or time is required')
             print('  time = {}'.format(data_s1.coords['Time'].values))
-            # check depth dimension
-            ndim = len(data_s1.dims)
-            if ndim == 1:
+            if self.depth is None:
                 data_s2 = data_s1
-            elif ndim == 2 and 'nVertLevels' in data_s1.dims:
-                if isinstance(idepth, int):
-                    data_s2 = data_s1.isel(nVertLevels=idepth)
-                elif depth is not None:
-                    data_s2 = data_s1.sel(nVertLevels=depth)
-                else:
-                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
-                print(' detph = {} ({})'.format(
-                    data_s2.coords['nVertLevels'].values,
-                    data_s2.coords['nVertLevels'].attrs['units']))
-            elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
-                if isinstance(idepth, int):
-                    data_s2 = data_s1.isel(nVertLevelsLES=idepth)
-                elif depth is not None:
-                    data_s2 = data_s1.sel(nVertLevelsLES=depth)
-                else:
-                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
-                print(' detph = {} ({})'.format(
-                    data_s2.coords['nVertLevelsLES'].values,
-                    data_s2.coords['nVertLevelsLES'].attrs['units']))
             else:
-                raise LookupError('\'{}\' is not a domain variable')
-        # create MPASOMap
-        out = MPASODomain(
-                data = data_s2.values,
-                name = var.attrs['long_name'],
-                units = var.attrs['units'],
-                mesh = self.mesh,
-                )
+                # check depth dimension
+                ndim = len(data_s1.dims)
+                if ndim == 1:
+                    data_s2 = data_s1
+                elif ndim == 2 and 'nVertLevels' in data_s1.dims:
+                    if isinstance(idepth, int):
+                        data_s2 = data_s1.isel(nVertLevels=idepth)
+                    elif depth is not None:
+                        data_s2 = data_s1.sel(nVertLevels=depth)
+                    else:
+                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                    print(' detph = {} ({})'.format(
+                        data_s2.coords['nVertLevels'].values,
+                        data_s2.coords['nVertLevels'].attrs['units']))
+                elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
+                    if isinstance(idepth, int):
+                        data_s2 = data_s1.isel(nVertLevelsLES=idepth)
+                    elif depth is not None:
+                        data_s2 = data_s1.sel(nVertLevelsLES=depth)
+                    else:
+                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                    print(' detph = {} ({})'.format(
+                        data_s2.coords['nVertLevelsLES'].values,
+                        data_s2.coords['nVertLevelsLES'].attrs['units']))
+                else:
+                    raise LookupError('\'{}\' cannot be loaded on either MPASOMap or MPASODomain')
+        # create MPASOMap if on a sphere
+        if self.dataset.attrs['on_a_sphere'] == 'YES':
+            out = MPASOMap(
+                    data = data_s2.values.squeeze(),
+                    name = var.attrs['long_name'],
+                    units = var.attrs['units'],
+                    mesh = self.mesh,
+                    )
+        else: # otherwise create MPASDomain
+            out = MPASODomain(
+                    data = data_s2.values.squeeze(),
+                    name = var.attrs['long_name'],
+                    units = var.attrs['units'],
+                    mesh = self.mesh,
+                    )
         return out
 
 #--------------------------------
