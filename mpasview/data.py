@@ -344,11 +344,11 @@ class MPASOData:
                 'nCells': np.arange(fdata.dims['nCells']),
                 })
             if 'nEdges' in fdata.dims:
-                out = fdata.assign_coords({
+                out = out.assign_coords({
                     'nEdges': np.arange(fdata.dims['nEdges']),
                     })
             if 'nVertices' in fdata.dims:
-                out = fdata.assign_coords({
+                out = out.assign_coords({
                     'nVertices': np.arange(fdata.dims['nVertices']),
                     })
             if 'nVertLevelsLES' in fdata.dims:
@@ -438,10 +438,10 @@ class MPASOData:
             else:
                 raise TypeError('Either \'itime\' in \'int\' or time is required')
             print('  time = {}'.format(data_s1.coords['Time'].values))
+            # check depth dimension
             if self.depth is None:
                 data_s2 = data_s1
             else:
-                # check depth dimension
                 ndim = len(data_s1.dims)
                 if ndim == 1:
                     data_s2 = data_s1
