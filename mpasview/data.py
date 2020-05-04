@@ -288,9 +288,15 @@ class MPASOData:
         """
         with xr.open_dataset(self._filepath) as fdata:
             # load time
-            xtime = fdata['xtime'].astype(str)
+            try:
+                xtime = fdata['xtime'].astype(str)
+            except KeyError:
+                try:
+                    xtime = fdata['xtime_startMonthly'].astype(str)
+                except KeyError:
+                    raise KeyError('Time dimension not found. Supported time dimension: \'xtime\', \'xtime_startMonthly\'')
             time_str = [x.strip() for x in xtime.values]
-            if int(time_str[0][:4]) < 1970:
+            if int(time_str[0][:4]) < 1678:
                 time_str = ['{:04d}'.format(int(s[:4])+self._year_ref)+s[4:] for s in time_str]
             time = pd.to_datetime(time_str, format='%Y-%m-%d_%H:%M:%S')
         return time
@@ -332,9 +338,15 @@ class MPASOData:
                 'Time': self.time,
                 'nVertLevels': np.arange(fdata.dims['nVertLevels']),
                 'nCells': np.arange(fdata.dims['nCells']),
-                'nEdges': np.arange(fdata.dims['nEdges']),
-                'nVertices': np.arange(fdata.dims['nVertices']),
                 })
+            if 'nEdges' in fdata.dims:
+                out = fdata.assign_coords({
+                    'nEdges': np.arange(fdata.dims['nEdges']),
+                    })
+            if 'nVertices' in fdata.dims:
+                out = fdata.assign_coords({
+                    'nVertices': np.arange(fdata.dims['nVertices']),
+                    })
             if 'nVertLevelsLES' in fdata.dims:
                 out = out.assign_coords({
                     'nVertLevelsLES': np.arange(fdata.dims['nVertLevelsLES']),
