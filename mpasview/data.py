@@ -5,6 +5,7 @@
 import os
 import copy
 import warnings
+import textwrap
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -674,7 +675,8 @@ class MPASOMap:
         # add colorbar
         if colorbar:
             cb = m.colorbar(fig, ax=axis)
-            cb.set_label('{} ({})'.format(self.name, self.units))
+            cb_label = '\n'.join(textwrap.wrap('{} ({})'.format(self.name, self.units), 30))
+            cb.set_label(cb_label)
             cb.formatter.set_powerlimits((-4, 4))
             cb.update_ticks()
         return m
@@ -873,7 +875,8 @@ class MPASODomain:
         # add colorbar
         if colorbar:
             cb = plt.colorbar(fig, ax=axis)
-            cb.set_label('{} ({})'.format(self.name, self.units))
+            cb_label = '\n'.join(textwrap.wrap('{} ({})'.format(self.name, self.units), 30))
+            cb.set_label(cb_label)
             cb.formatter.set_powerlimits((-4, 4))
             cb.update_ticks()
         return fig
