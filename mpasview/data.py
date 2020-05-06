@@ -265,7 +265,7 @@ class MPASOData:
         self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
         self.time = self.load_time()
         self.dataset = self.load_dataset()
-        if self.dataset.dims['nVertLevels'] == 1:
+        if 'nVertLevels' not in self.dataset.dims or self.dataset.dims['nVertLevels'] == 1:
             self.depth = None
         else:
             self.depth = self.load_depth()
@@ -277,9 +277,16 @@ class MPASOData:
         summary = [str(self.__class__)+':']
         summary.append('{:>12s}: {:s}'.format('data path', self._filepath))
         summary.append('{:>12s}: {:s}'.format('mesh path', self._filepath))
-        summary.append('{:>12s}: [{}...{}]'.format('time', self.time[0], self.time[-1]))
+        if self.time is not None:
+            if self.time.size > 4:
+                summary.append('{:>12s}: [{}...{}]'.format('time', self.time[0], self.time[-1]))
+            else:
+                summary.append('{:>12s}: {}'.format('time', self.time))
         if self.depth is not None:
-            summary.append('{:>12s}: [{}...{}]'.format('depth', self.depth.values[0], self.depth.values[-1]))
+            if self.depth.values.size > 4:
+                summary.append('{:>12s}: [{}...{}]'.format('depth', self.depth.values[0], self.depth.values[-1]))
+            else:
+                summary.append('{:>12s}: {}'.format('depth', self.depth.values))
         return '\n'.join(summary)
 
     def load_time(
@@ -292,13 +299,16 @@ class MPASOData:
         """
         with xr.open_dataset(self._filepath) as fdata:
             # load time
-            try:
-                xtime = fdata['xtime'].astype(str)
-            except KeyError:
-                try:
+            if 'Time' in fdata.dims:
+                if 'xtime' in fdata.data_vars:
+                    xtime = fdata['xtime'].astype(str)
+                elif 'xtime_startMonthly' in fdata.data_vars:
                     xtime = fdata['xtime_startMonthly'].astype(str)
-                except KeyError:
-                    raise KeyError('Time dimension not found. Supported time dimension: \'xtime\', \'xtime_startMonthly\'')
+                else:
+                    print('Time variable not found. Using indices instead...')
+                    return np.arange(fdata.dims['Time'])
+            else:
+                return None
             time_str = [x.strip() for x in xtime.values]
             if int(time_str[0][:4]) < 1678:
                 time_str = ['{:04d}'.format(int(s[:4])+self._year_ref)+s[4:] for s in time_str]
@@ -339,10 +349,16 @@ class MPASOData:
         """
         with xr.open_dataset(self._filepath) as fdata:
             out = fdata.assign_coords({
-                'Time': self.time,
-                'nVertLevels': np.arange(fdata.dims['nVertLevels']),
                 'nCells': np.arange(fdata.dims['nCells']),
                 })
+            if self.time is not None:
+                out = out.assign_coords({
+                    'Time': self.time,
+                    })
+            if 'nVertLevels' in fdata.dims:
+                out = out.assign_coords({
+                    'nVertLevels': np.arange(fdata.dims['nVertLevels']),
+                    })
             if 'nEdges' in fdata.dims:
                 out = out.assign_coords({
                     'nEdges': np.arange(fdata.dims['nEdges']),
