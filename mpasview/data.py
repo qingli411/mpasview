@@ -388,7 +388,7 @@ class MPASOData:
             raise LookupError('Profile variables not available in this dataset')
         var = self.dataset.data_vars[varname]
         if 'nVertLevels' not in var.dims and 'nVertLevelsLES' not in var.dims:
-            raise LookupError('\'{}\' is not a profile variables')
+            raise LookupError('\'{}\' is not a profile variables'.format(varname))
         if 'LES' in varname:
             # LES variables with different vertical levels
             with xr.open_dataset(self._filepath_mesh) as fmesh:
