@@ -269,6 +269,10 @@ class MPASOData:
             self.depth = None
         else:
             self.depth = self.load_depth()
+        if 'nVertLevelsP1' not in self.dataset.dims or self.depth is None:
+            self.depth_iface = None
+        else:
+            self.depth_iface = self.load_depth_iface()
 
     def __repr__(self):
         """Formatted print
@@ -339,6 +343,28 @@ class MPASOData:
                     )
         return depth
 
+    def load_depth_iface(self):
+        """Load depth dimension at cell interfaces
+
+        :return:  (xr.DataArray) depth
+
+        """
+        with xr.open_dataset(self._filepath_mesh) as fmesh:
+            if 'refBottomDepth' in fmesh.variables.keys():
+                bottom_depth = fmesh.data_vars['refBottomDepth'].values
+                z = np.zeros(bottom_depth.size+1)
+                z[0] = 0.0
+                z[1:] = -bottom_depth[0:]
+            else:
+                raise LookupError('\'refBottomDepth\' is found.')
+            depth = xr.DataArray(
+                    z,
+                    dims=('nVertLevelsP1'),
+                    coords={'nVertLevelsP1': z},
+                    attrs={'units': 'm', 'long_name': 'depth_iface'},
+                    )
+        return depth
+
     def load_dataset(
             self,
             ):
@@ -358,6 +384,10 @@ class MPASOData:
             if 'nVertLevels' in fdata.dims:
                 out = out.assign_coords({
                     'nVertLevels': np.arange(fdata.dims['nVertLevels']),
+                    })
+            if 'nVertLevelsP1' in fdata.dims:
+                out = out.assign_coords({
+                    'nVertLevelsP1': np.arange(fdata.dims['nVertLevelsP1']),
                     })
             if 'nEdges' in fdata.dims:
                 out = out.assign_coords({
@@ -387,9 +417,7 @@ class MPASOData:
         if self.depth is None:
             raise LookupError('Profile variables not available in this dataset')
         var = self.dataset.data_vars[varname]
-        if 'nVertLevels' not in var.dims and 'nVertLevelsLES' not in var.dims:
-            raise LookupError('\'{}\' is not a profile variables'.format(varname))
-        if 'LES' in varname:
+        if 'nVertLevelsLES' in var.dims:
             # LES variables with different vertical levels
             with xr.open_dataset(self._filepath_mesh) as fmesh:
                 z = fmesh.data_vars['zLES'].values[0,0,:]
@@ -400,8 +428,12 @@ class MPASOData:
                         attrs={'units': 'm', 'long_name': 'depth'},
                         )
             var = var.assign_coords({'nVertLevelsLES': depth})
-        else:
+        elif 'nVertLevelsP1' in var.dims:
+            var = var.assign_coords({'nVertLevelsP1': self.depth_iface})
+        elif 'nVertLevels' in var.dims:
             var = var.assign_coords({'nVertLevels': self.depth})
+        else:
+            raise LookupError('\'{}\' is not a profile variables'.format(varname))
         return var.transpose()
 
     def load_variable_map(
@@ -471,6 +503,16 @@ class MPASOData:
                     print(' detph = {} ({})'.format(
                         data_s2.coords['nVertLevels'].values,
                         data_s2.coords['nVertLevels'].attrs['units']))
+                elif ndim == 2 and 'nVertLevelsP1' in data_s1.dims:
+                    if isinstance(idepth, int):
+                        data_s2 = data_s1.isel(nVertLevelsP1=idepth)
+                    elif depth is not None:
+                        data_s2 = data_s1.sel(nVertLevelsP1=depth)
+                    else:
+                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                    print(' detph = {} ({})'.format(
+                        data_s2.coords['nVertLevelsP1'].values,
+                        data_s2.coords['nVertLevelsP1'].attrs['units']))
                 elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
                     if isinstance(idepth, int):
                         data_s2 = data_s1.isel(nVertLevelsLES=idepth)
