@@ -510,10 +510,13 @@ def get_index_xy(
     p = tree.query(pts)
     cidx = p[1]
     idx = np.argwhere(x_arr==x_sub[cidx])
-    for i in idx[0][:]:
-        if y_arr[i] == y_sub[cidx]:
-            out = i
-            break
+    if idx.size > 1:
+        for i in idx.squeeze():
+            if y_arr[i] == y_sub[cidx]:
+                out = i
+                break
+    else:
+        out = idx[0][0]
     return out
 
 #--------------------------------
