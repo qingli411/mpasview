@@ -860,17 +860,21 @@ class MPASODomain:
             ptype = 'contourf',
             cmap = 'viridis',
             colorbar = True,
+            mark_ids = [],
+            mark_colors = [],
             **kwargs,
             ):
         """Plot figure
 
-        :axis:      (matplotlib.axes, optional) axis to plot the figure on
-        :leveles:   (array-like, optional) list of levels
-        :ptype:     (str, optional) plot type, contourf by default
-        :cmap:      (str, optional) colormap, viridis by default
-        :colorbar:  (bool, optional) do not add colorbar if False
-        :**kwargs:  (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
-        :return:    (mpl_toolkits.basemap.Basemap) figure handle
+        :axis:        (matplotlib.axes, optional) axis to plot the figure on
+        :leveles:     (array-like, optional) list of levels
+        :ptype:       (str, optional) plot type, contourf by default
+        :cmap:        (str, optional) colormap, viridis by default
+        :colorbar:    (bool, optional) do not add colorbar if False
+        :mark_ids:    (list of int) list of IDs for highlighted cells/vertices
+        :mark_colors: (list of string) list of color names for highlighted cells/vertices
+        :**kwargs:    (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
+        :return:      (mpl_toolkits.basemap.Basemap) figure handle
 
         """
         # check input
@@ -933,6 +937,14 @@ class MPASODomain:
                                 vertices_cell=vertices_cell,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
+                    for idx, color in zip(mark_ids, mark_colors):
+                        ug_pcolor_cell(axis=plt.gca(),
+                                vertexid=self.mesh.vertexid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                nedges_cell=self.mesh.nedges_cell[idx:idx+1],
+                                vertices_cell=self.mesh.vertices_cell[idx:idx+1,:],
+                                linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
                 else: # self.position == 'vertex'
                     cellid = self.mesh.cellid
                     if self.mask is not None:
@@ -960,6 +972,13 @@ class MPASODomain:
                                 cells_vertex=cells_vertex,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
+                    for idx, color in zip(mark_ids, mark_colors):
+                        ug_pcolor_vertex(axis=plt.gca(),
+                                cellid=self.mesh.cellid,
+                                xcell=self.mesh.xcell,
+                                ycell=self.mesh.ycell,
+                                cells_vertex=self.mesh.cells_vertex[idx:idx+1],
+                                linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
             else:
                 raise ValueError('Plot type \'{:s}\' not supported'.format(ptype))
         # add colorbar
