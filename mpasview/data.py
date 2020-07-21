@@ -862,6 +862,7 @@ class MPASODomain:
             colorbar = True,
             mark_ids = [],
             mark_colors = [],
+            swap_xy = False,
             **kwargs,
             ):
         """Plot figure
@@ -873,6 +874,7 @@ class MPASODomain:
         :colorbar:    (bool, optional) do not add colorbar if False
         :mark_ids:    (list of int) list of IDs for highlighted cells/vertices
         :mark_colors: (list of string) list of color names for highlighted cells/vertices
+        :swap_xy:     (bool, optional) swap x- and y-axes
         :**kwargs:    (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
         :return:      (mpl_toolkits.basemap.Basemap) figure handle
 
@@ -902,8 +904,12 @@ class MPASODomain:
             norm = None
         # simple plot if mesh is not defined
         if self.mesh is None or ptype == 'contourf':
-            fig = axis.tricontourf(x, y, data, levels=levels, extend='both',
-                        norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
+            if swap_xy:
+                fig = axis.tricontourf(y, x, data, levels=levels, extend='both',
+                            norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
+            else:
+                fig = axis.tricontourf(x, y, data, levels=levels, extend='both',
+                            norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
