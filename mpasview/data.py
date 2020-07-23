@@ -7,6 +7,7 @@ import copy
 import warnings
 import textwrap
 import numpy as np
+import numbers
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -479,7 +480,7 @@ class MPASOData:
         if 'Time' not in var.dims:
             data_s2 = var
         else:
-            if isinstance(itime, int):
+            if isinstance(itime, numbers.Integral):
                 data_s1 = var.isel(Time=itime)
             elif time is not None:
                 data_s1 = var.sel(Time=time)
@@ -494,7 +495,7 @@ class MPASOData:
                 if ndim == 1:
                     data_s2 = data_s1
                 elif ndim == 2 and 'nVertLevels' in data_s1.dims:
-                    if isinstance(idepth, int):
+                    if isinstance(idepth, numbers.Integral):
                         data_s2 = data_s1.isel(nVertLevels=idepth)
                     elif depth is not None:
                         data_s2 = data_s1.sel(nVertLevels=depth)
@@ -504,7 +505,7 @@ class MPASOData:
                         data_s2.coords['nVertLevels'].values,
                         data_s2.coords['nVertLevels'].attrs['units']))
                 elif ndim == 2 and 'nVertLevelsP1' in data_s1.dims:
-                    if isinstance(idepth, int):
+                    if isinstance(idepth, numbers.Integral):
                         data_s2 = data_s1.isel(nVertLevelsP1=idepth)
                     elif depth is not None:
                         data_s2 = data_s1.sel(nVertLevelsP1=depth)
@@ -514,7 +515,7 @@ class MPASOData:
                         data_s2.coords['nVertLevelsP1'].values,
                         data_s2.coords['nVertLevelsP1'].attrs['units']))
                 elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
-                    if isinstance(idepth, int):
+                    if isinstance(idepth, numbers.Integral):
                         data_s2 = data_s1.isel(nVertLevelsLES=idepth)
                     elif depth is not None:
                         data_s2 = data_s1.sel(nVertLevelsLES=depth)
