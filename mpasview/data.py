@@ -433,6 +433,11 @@ class MPASOData:
             var = var.assign_coords({'nVertLevelsP1': self.depth_iface})
         elif 'nVertLevels' in var.dims:
             var = var.assign_coords({'nVertLevels': self.depth})
+            # mask topography
+            if 'nCells' in var.dims:
+                with xr.open_dataset(self._filepath_mesh) as fmesh:
+                    maxlevelcell = fmesh.data_vars['maxLevelCell']
+                    var = var.where(var.nVertLevels>=var.nVertLevels[maxlevelcell])
         else:
             raise LookupError('\'{}\' is not a profile variables'.format(varname))
         return var.transpose()
