@@ -437,7 +437,7 @@ class MPASOData:
             if 'nCells' in var.dims:
                 with xr.open_dataset(self._filepath_mesh) as fmesh:
                     maxlevelcell = fmesh.data_vars['maxLevelCell']
-                    var = var.where(var.nVertLevels>=var.nVertLevels[maxlevelcell])
+                    var = var.where(var.nVertLevels>=var.nVertLevels[maxlevelcell-1])
         else:
             raise LookupError('\'{}\' is not a profile variables'.format(varname))
         return var.transpose()
