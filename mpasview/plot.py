@@ -226,6 +226,52 @@ def ug_pcolor_vertex(
     fig = axis.add_collection(pc)
     return fig
 
+def ug_pcolor_edge(
+        axis = None,
+        data = None,
+        edgeid = np.nan,
+        xvertex = np.nan,
+        yvertex = np.nan,
+        vertices_edge = np.nan,
+        **kwargs,
+        ):
+    """Pseudocolor plot on unstructured grid (edges)
+
+    :axis:          (matplotlib.axes, optional) axis to plot the figure on
+    :data:          (array-like) data to plot
+    :edgeid:        (array-like) edge ID
+    :xvertex:       (array-like) x-coordinate of vertices
+    :yvertex:       (array-like) y-coordinate of vertices
+    :vertices_edge: (array-like) vertices on edges
+    :**kwargs:      (keyword arguments, optional) passed along to the LineCollection constructor
+    :return:        (matplotlib.collections.LineCollection)
+
+    """
+    # use curret axis if not specified
+    if axis is None:
+        axis = plt.gca()
+    # patches
+    segments = []
+    nedge = vertices_edge.shape[0]
+    for i in np.arange(nedge):
+        vid = vertices_edge[i,:]
+        vidx = vid-1
+        # TODO: assuming the edge id is the index + 1 for now
+        # which is much faster than the following code using edgeid
+        # vidx = np.zeros(vid.size, np.int)
+        # for j in np.arange(vid.size):
+        #     vidx[j] = np.argwhere(edgeid==vid[j])
+        xp = xvertex[vidx]
+        yp = yvertex[vidx]
+        segments.append(list(zip(xp,yp)))
+    segments = np.array(segments)
+    # plot line collection
+    lc = LineCollection(segments, **kwargs)
+    if data is not None:
+        lc.set_array(data)
+    fig = axis.add_collection(lc)
+    return fig
+
 def ug_pcolor_cell_periodic(
         axis = None,
         data = None,
@@ -387,4 +433,78 @@ def ug_pcolor_vertex_periodic(
     axis.set_ylabel('y')
     return fig
 
+def ug_pcolor_edge_periodic(
+        axis = None,
+        data = None,
+        xperiod = 0,
+        yperiod = 0,
+        edgeid = np.nan,
+        xvertex = np.nan,
+        yvertex = np.nan,
+        xedge = np.nan,
+        yedge = np.nan,
+        dv_edge = np.nan,
+        vertices_edge = np.nan,
+        **kwargs,
+        ):
+    """Pseudocolor plot on unstructured grid (edges, periodic)
 
+    :axis:          (matplotlib.axes, optional) axis to plot the figure on
+    :data:          (array-like) data to plot
+    :xperiod:       (float) period in x-direction
+    :yperiod:       (float) period in y-direction
+    :edgeid:        (array-like) edge ID
+    :xvertex:       (array-like) x-coordinate of vertices
+    :yvertex:       (array-like) y-coordinate of vertices
+    :xedge:         (array-like) x-coordinate of edges
+    :yedge:         (array-like) y-coordinate of edges
+    :dv_edge:       (array like) length of edges, distance between vertices on edge
+    :vertices_edge: (array-like) vertices on edges
+    :**kwargs:      (keyword arguments, optional) passed along to the LineCollection constructor
+    :return:        (matplotlib.collections.LineCollection)
+
+    """
+    # use curret axis if not specified
+    if axis is None:
+        axis = plt.gca()
+    # maximum edge length
+    dv_edge_small = 1.0
+    dv_edge_max = dv_edge.max() + dv_edge_small
+    # patches
+    segments = []
+    nedge = vertices_edge.shape[0]
+    for i in np.arange(nedge):
+        vid = vertices_edge[i,:]
+        vidx = vid-1
+        # TODO: assuming the edge id is the index + 1 for now
+        # which is much faster than the following code using edgeid
+        # vidx = np.zeros(vid.size, np.int)
+        # for j in np.arange(vid.size):
+        #     vidx[j] = np.argwhere(edgeid==vid[j])
+        xp = xvertex[vidx]
+        yp = yvertex[vidx]
+        if any(np.abs(xp[0:-1]-xp[1:]) > dv_edge_max) or \
+           any(np.abs(yp[0:-1]-yp[1:]) > dv_edge_max):
+            xc = xedge[i]
+            yc = yedge[i]
+            for j in np.arange(2):
+                if xp[j] - xc > dv_edge_max:
+                    xp[j] -= xperiod
+                elif xp[j] - xc < -dv_edge_max:
+                    xp[j] += xperiod
+                if yp[j] - yc > dv_edge_max:
+                    yp[j] -= yperiod
+                elif yp[j] - yc < -dv_edge_max:
+                    yp[j] += yperiod
+        segments.append(list(zip(xp,yp)))
+    segments = np.array(segments)
+    # plot line collection
+    lc = LineCollection(segments, **kwargs)
+    if data is not None:
+        lc.set_array(data)
+    fig = axis.add_collection(lc)
+    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+1.8*dv_edge_max])
+    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
+    axis.set_xlabel('x')
+    axis.set_ylabel('y')
+    return fig

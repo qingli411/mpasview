@@ -478,12 +478,14 @@ class MPASOData:
             position = 'cell'
         elif 'nVertices' in var.dims:
             position = 'vertex'
+        elif 'nEdges' in var.dims:
+            position = 'edge'
         else:
-            raise LookupError('\'{}\' is not a domain variable'.format(varname))
+            raise LookupError('Cannot load \'{}\' as MPASOMap or MPASODomain'.format(varname))
         print('Loading \'{}\'...'.format(varname))
         # check time dimension
         if 'Time' not in var.dims:
-            data_s2 = var
+            data_s1 = var
         else:
             if isinstance(itime, numbers.Integral):
                 data_s1 = var.isel(Time=itime)
@@ -492,45 +494,45 @@ class MPASOData:
             else:
                 raise TypeError('Either \'itime\' in \'int\' or time is required')
             print('  time = {}'.format(data_s1.coords['Time'].values))
-            # check depth dimension
-            if self.depth is None:
+        # check depth dimension
+        if self.depth is None:
+            data_s2 = data_s1
+        else:
+            ndim = len(data_s1.dims)
+            if ndim == 1:
                 data_s2 = data_s1
-            else:
-                ndim = len(data_s1.dims)
-                if ndim == 1:
-                    data_s2 = data_s1
-                elif ndim == 2 and 'nVertLevels' in data_s1.dims:
-                    if isinstance(idepth, numbers.Integral):
-                        data_s2 = data_s1.isel(nVertLevels=idepth)
-                    elif depth is not None:
-                        data_s2 = data_s1.sel(nVertLevels=depth)
-                    else:
-                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
-                    print(' detph = {} ({})'.format(
-                        data_s2.coords['nVertLevels'].values,
-                        data_s2.coords['nVertLevels'].attrs['units']))
-                elif ndim == 2 and 'nVertLevelsP1' in data_s1.dims:
-                    if isinstance(idepth, numbers.Integral):
-                        data_s2 = data_s1.isel(nVertLevelsP1=idepth)
-                    elif depth is not None:
-                        data_s2 = data_s1.sel(nVertLevelsP1=depth)
-                    else:
-                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
-                    print(' detph = {} ({})'.format(
-                        data_s2.coords['nVertLevelsP1'].values,
-                        data_s2.coords['nVertLevelsP1'].attrs['units']))
-                elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
-                    if isinstance(idepth, numbers.Integral):
-                        data_s2 = data_s1.isel(nVertLevelsLES=idepth)
-                    elif depth is not None:
-                        data_s2 = data_s1.sel(nVertLevelsLES=depth)
-                    else:
-                        raise TypeError('Either \'idepth\' in \'int\' or depth is required')
-                    print(' detph = {} ({})'.format(
-                        data_s2.coords['nVertLevelsLES'].values,
-                        data_s2.coords['nVertLevelsLES'].attrs['units']))
+            elif ndim == 2 and 'nVertLevels' in data_s1.dims:
+                if isinstance(idepth, numbers.Integral):
+                    data_s2 = data_s1.isel(nVertLevels=idepth)
+                elif depth is not None:
+                    data_s2 = data_s1.sel(nVertLevels=depth)
                 else:
-                    raise LookupError('\'{}\' cannot be loaded on either MPASOMap or MPASODomain')
+                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                print(' detph = {} ({})'.format(
+                    data_s2.coords['nVertLevels'].values,
+                    data_s2.coords['nVertLevels'].attrs['units']))
+            elif ndim == 2 and 'nVertLevelsP1' in data_s1.dims:
+                if isinstance(idepth, numbers.Integral):
+                    data_s2 = data_s1.isel(nVertLevelsP1=idepth)
+                elif depth is not None:
+                    data_s2 = data_s1.sel(nVertLevelsP1=depth)
+                else:
+                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                print(' detph = {} ({})'.format(
+                    data_s2.coords['nVertLevelsP1'].values,
+                    data_s2.coords['nVertLevelsP1'].attrs['units']))
+            elif ndim == 2 and 'nVertLevelsLES' in data_s1.dims:
+                if isinstance(idepth, numbers.Integral):
+                    data_s2 = data_s1.isel(nVertLevelsLES=idepth)
+                elif depth is not None:
+                    data_s2 = data_s1.sel(nVertLevelsLES=depth)
+                else:
+                    raise TypeError('Either \'idepth\' in \'int\' or depth is required')
+                print(' detph = {} ({})'.format(
+                    data_s2.coords['nVertLevelsLES'].values,
+                    data_s2.coords['nVertLevelsLES'].attrs['units']))
+            else:
+                raise LookupError('\'{}\' cannot be loaded on either MPASOMap or MPASODomain')
         # create MPASOMap if on a sphere
         if self.dataset.attrs['on_a_sphere'] == 'YES':
             out = MPASOMap(
@@ -538,6 +540,7 @@ class MPASOData:
                     name = var.attrs['long_name'],
                     units = var.attrs['units'],
                     mesh = self.mesh,
+                    position = position,
                     )
         else: # otherwise create MPASDomain
             out = MPASODomain(
@@ -545,7 +548,9 @@ class MPASOData:
                     name = var.attrs['long_name'],
                     units = var.attrs['units'],
                     mesh = self.mesh,
+                    position = position,
                     )
+        print('Done')
         return out
 
 #--------------------------------
@@ -618,6 +623,7 @@ class MPASOMap:
             summary.append('{:>8s}: '.format(attr)+dataview)
         if self.mesh is not None:
             summary.append('{:>8s}: '.format('mesh')+self.mesh.name)
+        summary.append('{:>8s}: '.format('position')+self.position)
         return '\n'.join(summary)
 
     def __getitem__(self, index):
@@ -805,7 +811,7 @@ class MPASODomain:
         :x:         (array like) x-coordinate
         :y:         (array like) y-coordinate
         :mesh:      (MPASMesh) mesh object
-        :position:  (str) position of data (cell (default), or vertex)
+        :position:  (str) position of data (cell (default), or vertex, or edge)
         :mask:      (array like) mask
 
         """
@@ -828,8 +834,11 @@ class MPASODomain:
             elif self.position == 'vertex':
                 self.x = mesh.xvertex
                 self.y = mesh.yvertex
+            elif self.position == 'edge':
+                self.x = mesh.xedge
+                self.y = mesh.yedge
             else:
-                raise ValueError('Position should be \'cell\' (default), or \'vertex\', got \'{:s}\''.format(self.position))
+                raise ValueError('Position should be \'cell\' (default), \'vertex\', or \'edge\', got \'{:s}\''.format(self.position))
 
     def __repr__(self):
         """Formatted print
@@ -848,6 +857,7 @@ class MPASODomain:
             summary.append('{:>8s}: '.format(attr)+dataview)
         if self.mesh is not None:
             summary.append('{:>8s}: '.format('mesh')+self.mesh.name)
+        summary.append('{:>8s}: '.format('position')+self.position)
         return '\n'.join(summary)
 
     def __getitem__(self, index):
@@ -919,7 +929,6 @@ class MPASODomain:
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
-                    vertexid = self.mesh.vertexid
                     if self.mask is not None:
                         nedges_cell = self.mesh.nedges_cell[self.mask]
                         vertices_cell = self.mesh.vertices_cell[self.mask,:]
@@ -957,8 +966,7 @@ class MPASODomain:
                                 nedges_cell=self.mesh.nedges_cell[idx:idx+1],
                                 vertices_cell=self.mesh.vertices_cell[idx:idx+1,:],
                                 linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
-                else: # self.position == 'vertex'
-                    cellid = self.mesh.cellid
+                elif self.position == 'vertex':
                     if self.mask is not None:
                         cells_vertex = self.mesh.cells_vertex[self.mask,:]
                     else:
@@ -991,6 +999,34 @@ class MPASODomain:
                                 ycell=self.mesh.ycell,
                                 cells_vertex=self.mesh.cells_vertex[idx:idx+1],
                                 linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
+                elif self.position == 'edge':
+                    if self.mask is not None:
+                        vertices_edge = self.mesh.vertices_edge[self.mask,:]
+                    else:
+                        vertices_edge = self.mesh.vertices_edge
+                    if self.mesh.is_periodic:
+                        fig = ug_pcolor_edge_periodic(axis=axis, data=data,
+                                xperiod=self.mesh.xperiod,
+                                yperiod=self.mesh.yperiod,
+                                edgeid=self.mesh.edgeid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                xedge=self.mesh.xedge,
+                                yedge=self.mesh.yedge,
+                                dv_edge=self.mesh.dv_edge,
+                                vertices_edge=vertices_edge,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+                    else:
+                        fig = ug_pcolor_edge(axis=axis, data=data,
+                                edgeid=self.mesh.edgeid,
+                                xvertex=self.mesh.xvertex,
+                                yvertex=self.mesh.yvertex,
+                                vertices_edge=vertices_edge,
+                                norm=norm, cmap=plt.cm.get_cmap(cmap),
+                                **kwargs)
+                else:
+                    raise ValueError('Position \'{:s}\' not supported, should be \'cell\', \'vertex\', or \'edge\''.format(self.position))
             else:
                 raise ValueError('Plot type \'{:s}\' not supported'.format(ptype))
         # add colorbar
