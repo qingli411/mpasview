@@ -535,6 +535,7 @@ def get_info_region(name):
             'Arctic': (  0., 360.,  40., 90.),
             'LabSea': (270., 356.,  36., 75.),
             'TropicalPacific':  (130., 290., -20., 20.),
+            'TropicalPacificSmall':  (160., 280., -10., 10.),
             'TropicalAtlantic': (310., 380., -20., 20.),
             }
     if name in info.keys():

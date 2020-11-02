@@ -32,6 +32,7 @@ def plot_basemap(
             'Arctic': _plot_basemap_arctic,
             'LabSea': _plot_basemap_labsea,
             'TropicalPacific': _plot_basemap_tropicalpacific,
+            'TropicalPacificSmall': _plot_basemap_tropicalpacific_small,
             'TropicalAtlantic': _plot_basemap_tropicalatlantic,
             }
     if region in switcher.keys():
@@ -116,6 +117,13 @@ def _plot_basemap_tropicalpacific(axis):
     """
     return _plot_basemap_region(axis, lon_ll=130.0, lat_ll=-20.0, \
                                 lon_ur=290.0, lat_ur=20.0, projection='cyl')
+
+def _plot_basemap_tropicalpacific_small(axis):
+    """Plot basemap for Tropical Pacific (small)
+
+    """
+    return _plot_basemap_region(axis, lon_ll=160.0, lat_ll=-10.0, \
+                                lon_ur=280.0, lat_ur=10.0, projection='cyl')
 
 def _plot_basemap_tropicalatlantic(axis):
     """Plot basemap for Tropical Atlantic
