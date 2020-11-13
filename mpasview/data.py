@@ -16,6 +16,38 @@ from .plot import *
 from .utils import *
 
 #--------------------------------
+# shared functions
+#--------------------------------
+def get_time(
+        filepath,
+        year_ref=2000,
+        ):
+    """Get the time dimension and convert to datetime64
+
+    :filepath: (str) full path of the input file
+    :year_ref: (int) reference year for time
+    :return:   (datetime64) time
+
+    """
+    with xr.open_dataset(filepath) as fdata:
+        # load time
+        if 'Time' in fdata.dims:
+            if 'xtime' in fdata.data_vars:
+                xtime = fdata['xtime'].astype(str)
+            elif 'xtime_startMonthly' in fdata.data_vars:
+                xtime = fdata['xtime_startMonthly'].astype(str)
+            else:
+                print('Time variable not found. Using indices instead...')
+                return np.arange(fdata.dims['Time'])
+        else:
+            return None
+        time_str = [x.strip() for x in xtime.values]
+        if int(time_str[0][:4]) < 1678:
+            time_str = ['{:04d}'.format(int(s[:4])+year_ref)+s[4:] for s in time_str]
+        time = pd.to_datetime(time_str, format='%Y-%m-%d_%H:%M:%S')
+    return time
+
+#--------------------------------
 # MPASMesh
 #--------------------------------
 
@@ -264,7 +296,7 @@ class MPASOData:
         base_mesh = os.path.basename(filepath_mesh)
         name_mesh = os.path.splitext(base_mesh)[0]
         self.mesh = MPASMesh(name=name_mesh, filepath=filepath_mesh)
-        self.time = self.load_time()
+        self.time = get_time(self._filepath, self._year_ref)
         self.dataset = self.load_dataset()
         if 'nVertLevels' not in self.dataset.dims or self.dataset.dims['nVertLevels'] == 1:
             self.depth = None
@@ -293,32 +325,6 @@ class MPASOData:
             else:
                 summary.append('{:>12s}: {}'.format('depth', self.depth.values))
         return '\n'.join(summary)
-
-    def load_time(
-            self,
-            ):
-        """Load the time dimension and convert to datetime64
-
-        :return:   (datetime64) time
-
-        """
-        with xr.open_dataset(self._filepath) as fdata:
-            # load time
-            if 'Time' in fdata.dims:
-                if 'xtime' in fdata.data_vars:
-                    xtime = fdata['xtime'].astype(str)
-                elif 'xtime_startMonthly' in fdata.data_vars:
-                    xtime = fdata['xtime_startMonthly'].astype(str)
-                else:
-                    print('Time variable not found. Using indices instead...')
-                    return np.arange(fdata.dims['Time'])
-            else:
-                return None
-            time_str = [x.strip() for x in xtime.values]
-            if int(time_str[0][:4]) < 1678:
-                time_str = ['{:04d}'.format(int(s[:4])+self._year_ref)+s[4:] for s in time_str]
-            time = pd.to_datetime(time_str, format='%Y-%m-%d_%H:%M:%S')
-        return time
 
     def load_depth(self):
         """Load depth dimension at cell centers
