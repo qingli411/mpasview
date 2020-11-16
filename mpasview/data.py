@@ -47,6 +47,58 @@ def get_time(
         time = pd.to_datetime(time_str, format='%Y-%m-%d_%H:%M:%S')
     return time
 
+def get_depth(
+        filepath,
+        ):
+    """Get the depth dimension at vertical grid centers
+
+    :filepath: (str) full path of the input file
+    :return:   (xr.DataArray) depth
+
+    """
+    with xr.open_dataset(filepath) as fmesh:
+        if 'refZMid' in fmesh.variables.keys():
+            z = fmesh.data_vars['refZMid'].values
+        elif 'refBottomDepth' in fmesh.variables.keys():
+            bottom_depth = fmesh.data_vars['refBottomDepth'].values
+            z = np.zeros_like(bottom_depth)
+            z[0] = -0.5*bottom_depth[0]
+            z[1:] = -0.5*(bottom_depth[0:-1]+bottom_depth[1:])
+        else:
+            raise LookupError('Neither \'refZMid\' or \'refBottomDepth\' is found.')
+        depth = xr.DataArray(
+                z,
+                dims=('nVertLevels'),
+                coords={'nVertLevels': z},
+                attrs={'units': 'm', 'long_name': 'depth'},
+                )
+    return depth
+
+def get_depth_iface(
+        filepath,
+        ):
+    """Get the depth dimension at vertical grid interfaces
+
+    :filepath: (str) full path of the input file
+    :return:  (xr.DataArray) depth
+
+    """
+    with xr.open_dataset(filepath) as fmesh:
+        if 'refBottomDepth' in fmesh.variables.keys():
+            bottom_depth = fmesh.data_vars['refBottomDepth'].values
+            z = np.zeros(bottom_depth.size+1)
+            z[0] = 0.0
+            z[1:] = -bottom_depth[0:]
+        else:
+            raise LookupError('\'refBottomDepth\' is found.')
+        depth = xr.DataArray(
+                z,
+                dims=('nVertLevelsP1'),
+                coords={'nVertLevelsP1': z},
+                attrs={'units': 'm', 'long_name': 'depth_iface'},
+                )
+    return depth
+
 #--------------------------------
 # MPASMesh
 #--------------------------------
@@ -301,11 +353,11 @@ class MPASOData:
         if 'nVertLevels' not in self.dataset.dims or self.dataset.dims['nVertLevels'] == 1:
             self.depth = None
         else:
-            self.depth = self.load_depth()
+            self.depth = get_depth(self._filepath_mesh)
         if 'nVertLevelsP1' not in self.dataset.dims or self.depth is None:
             self.depth_iface = None
         else:
-            self.depth_iface = self.load_depth_iface()
+            self.depth_iface = get_depth_iface(self._filepath_mesh)
 
     def __repr__(self):
         """Formatted print
@@ -325,52 +377,6 @@ class MPASOData:
             else:
                 summary.append('{:>12s}: {}'.format('depth', self.depth.values))
         return '\n'.join(summary)
-
-    def load_depth(self):
-        """Load depth dimension at cell centers
-
-        :return:  (xr.DataArray) depth
-
-        """
-        with xr.open_dataset(self._filepath_mesh) as fmesh:
-            if 'refZMid' in fmesh.variables.keys():
-                z = fmesh.data_vars['refZMid'].values
-            elif 'refBottomDepth' in fmesh.variables.keys():
-                bottom_depth = fmesh.data_vars['refBottomDepth'].values
-                z = np.zeros_like(bottom_depth)
-                z[0] = -0.5*bottom_depth[0]
-                z[1:] = -0.5*(bottom_depth[0:-1]+bottom_depth[1:])
-            else:
-                raise LookupError('Neither \'refZMid\' or \'refBottomDepth\' is found.')
-            depth = xr.DataArray(
-                    z,
-                    dims=('nVertLevels'),
-                    coords={'nVertLevels': z},
-                    attrs={'units': 'm', 'long_name': 'depth'},
-                    )
-        return depth
-
-    def load_depth_iface(self):
-        """Load depth dimension at cell interfaces
-
-        :return:  (xr.DataArray) depth
-
-        """
-        with xr.open_dataset(self._filepath_mesh) as fmesh:
-            if 'refBottomDepth' in fmesh.variables.keys():
-                bottom_depth = fmesh.data_vars['refBottomDepth'].values
-                z = np.zeros(bottom_depth.size+1)
-                z[0] = 0.0
-                z[1:] = -bottom_depth[0:]
-            else:
-                raise LookupError('\'refBottomDepth\' is found.')
-            depth = xr.DataArray(
-                    z,
-                    dims=('nVertLevelsP1'),
-                    coords={'nVertLevelsP1': z},
-                    attrs={'units': 'm', 'long_name': 'depth_iface'},
-                    )
-        return depth
 
     def load_dataset(
             self,
@@ -702,7 +708,7 @@ class MPASOMap:
         else:
             mask = self.mask
         # apply mask
-        data = self.data[mask]
+        data =  data[mask]
         lon  =  lon[mask]
         lat  =  lat[mask]
         lon_fill = self.lon[fill_mask]
@@ -723,32 +729,33 @@ class MPASOMap:
             xx, yy = m(lon, lat)
             fig = m.contourf(xx, yy, data, tri=True, levels=levels, extend='both',
                         norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
-            # fill nan
-            if self.position == 'cell':
-                vertexid = self.mesh.vertexid
-                xvertex = self.mesh.xvertex
-                if lon_wrapping:
-                    xvertex = np.where(xvertex < dlon_wrapping, xvertex+360., xvertex)
-                yvertex = self.mesh.yvertex
-                nedges_cell = self.mesh.nedges_cell[fill_mask]
-                vertices_cell = self.mesh.vertices_cell[fill_mask,:]
-                xx, yy = m(xvertex, yvertex)
-                ug_pcolor_cell(axis=m.ax,
-                        vertexid=vertexid, xvertex=xx, yvertex=yy,
-                        nedges_cell=nedges_cell, vertices_cell=vertices_cell,
-                        linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
-            else: # self.position == 'vertex'
-                cellid = self.mesh.cellid
-                xcell = self.mesh.xcell
-                if lon_wrapping:
-                    xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
-                ycell = self.mesh.ycell
-                cells_vertex = self.mesh.cells_vertex[fill_mask,:]
-                xx, yy = m(xcell, ycell)
-                ug_pcolor_vertex(axis=m.ax, data=data,
-                        cellid=cellid, xcell=xx, ycell=yy,
-                        cells_vertex=cells_vertex,
-                        linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
+            if self.mesh is not None:
+                # fill nan
+                if self.position == 'cell':
+                    vertexid = self.mesh.vertexid
+                    xvertex = self.mesh.xvertex
+                    if lon_wrapping:
+                        xvertex = np.where(xvertex < dlon_wrapping, xvertex+360., xvertex)
+                    yvertex = self.mesh.yvertex
+                    nedges_cell = self.mesh.nedges_cell[fill_mask]
+                    vertices_cell = self.mesh.vertices_cell[fill_mask,:]
+                    xx, yy = m(xvertex, yvertex)
+                    ug_pcolor_cell(axis=m.ax,
+                            vertexid=vertexid, xvertex=xx, yvertex=yy,
+                            nedges_cell=nedges_cell, vertices_cell=vertices_cell,
+                            linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
+                else: # self.position == 'vertex'
+                    cellid = self.mesh.cellid
+                    xcell = self.mesh.xcell
+                    if lon_wrapping:
+                        xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
+                    ycell = self.mesh.ycell
+                    cells_vertex = self.mesh.cells_vertex[fill_mask,:]
+                    xx, yy = m(xcell, ycell)
+                    ug_pcolor_vertex(axis=m.ax, data=data,
+                            cellid=cellid, xcell=xx, ycell=yy,
+                            cells_vertex=cells_vertex,
+                            linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
         else:
             if ptype == 'pcolor':
                 if self.position == 'cell':
