@@ -25,9 +25,6 @@ def plot_basemap(
     :return:    (cartopy.mpl.geoaxes.GeoAxes)
 
     """
-    # use curret axis if not specified
-    if axis is None:
-        axis = plt.gca()
     # plot basemap
     switcher = {
             'Global': _plot_basemap_global,
@@ -44,12 +41,16 @@ def plot_basemap(
                 + '- Supported region names:\n' \
                 + '  ' + ', '.join(switcher.keys()))
 
-def _plot_basemap_global(axis):
+def _plot_basemap_global(axis=None):
     """Plot basemap for global region
 
     """
     # global map
-    m = plt.axes(projection=ccrs.PlateCarree(central_longitude=200.0))
+    if axis is None:
+        m = plt.axes(projection=ccrs.PlateCarree(central_longitude=200.0))
+    else:
+        m = axis
+        m.projection = ccrs.PlateCarree(central_longitude=200.0)
     m.set_global()
     # plot land and coastlines, draw label meridians and parallels.
     m.add_feature(cfeature.LAND, zorder=1, edgecolor='black', facecolor='gray')
@@ -58,11 +59,15 @@ def _plot_basemap_global(axis):
     gl.top_labels = False
     return m
 
-def _plot_basemap_arctic(axis):
+def _plot_basemap_arctic(axis=None):
     """Plot basemap for Arctic
 
     """
-    m = plt.axes(projection=ccrs.NorthPolarStereo())
+    if axis is None:
+        m = plt.axes(projection=ccrs.NorthPolarStereo())
+    else:
+        m = axis
+        m.projection=ccrs.NorthPolarStereo()
     # Limit the map to 50 degrees latitude and above.
     m.set_extent([-180, 180, 50, 90], ccrs.PlateCarree())
     m.add_feature(cfeature.LAND, zorder=1, edgecolor='black', facecolor='gray')
@@ -72,12 +77,12 @@ def _plot_basemap_arctic(axis):
     return m
 
 def _plot_basemap_region(
-        axis,
         lon_ll,
         lat_ll,
         lon_ur,
         lat_ur,
         projection,
+        axis=None,
         xlocator=None,
         ylocator=None,
         ):
@@ -97,7 +102,11 @@ def _plot_basemap_region(
     # regional map
     lon_c = 0.5*(lon_ll+lon_ur)
     lat_c = 0.5*(lat_ll+lat_ur)
-    m = plt.axes(projection=projection)
+    if axis is None:
+        m = plt.axes(projection=projection)
+    else:
+        m = axis
+        m.projection = projection
     m.set_extent([lon_ll, lon_ur, lat_ll, lat_ur], ccrs.PlateCarree())
     m.add_feature(cfeature.LAND, zorder=1, edgecolor='black', facecolor='gray')
     gl = m.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
@@ -114,7 +123,7 @@ def _plot_basemap_labsea(axis):
     """Plot basemap for Labrador Sea
 
     """
-    m = _plot_basemap_region(axis, lon_ll=296.0, lat_ll=40.0, \
+    m = _plot_basemap_region(axis=axis, lon_ll=296.0, lat_ll=40.0, \
                              lon_ur=336.0, lat_ur=70.0, \
                              projection=ccrs.Orthographic(central_longitude=316.0, central_latitude=55), \
                              xlocator=np.linspace(-80,-30,6), \
@@ -129,7 +138,7 @@ def _plot_basemap_tropicalpacific(axis):
     """Plot basemap for Tropical Pacific
 
     """
-    return _plot_basemap_region(axis, lon_ll=130.0, lat_ll=-20.0, \
+    return _plot_basemap_region(axis=axis, lon_ll=130.0, lat_ll=-20.0, \
                                 lon_ur=290.0, lat_ur=20.0, projection=ccrs.PlateCarree(central_longitude=210), \
                                 xlocator=np.concatenate([np.linspace(130,180,6), np.linspace(-190,-70,13)]), \
                                 ylocator=[-20, -10, 0, 10, 20])
@@ -138,7 +147,7 @@ def _plot_basemap_tropicalpacific_small(axis):
     """Plot basemap for Tropical Pacific (small)
 
     """
-    return _plot_basemap_region(axis, lon_ll=160.0, lat_ll=-10.0, \
+    return _plot_basemap_region(axis=axis, lon_ll=160.0, lat_ll=-10.0, \
                                 lon_ur=280.0, lat_ur=10.0, projection=ccrs.PlateCarree(central_longitude=220), \
                                 xlocator=np.concatenate([np.linspace(160,180,3), np.linspace(-190,-80,12)]), \
                                 ylocator=[-10, 0, 10])
@@ -147,7 +156,7 @@ def _plot_basemap_tropicalatlantic(axis):
     """Plot basemap for Tropical Atlantic
 
     """
-    return _plot_basemap_region(axis, lon_ll=310.0, lat_ll=-20.0, \
+    return _plot_basemap_region(axis=axis, lon_ll=310.0, lat_ll=-20.0, \
                                 lon_ur=380.0, lat_ur=20.0, projection=ccrs.PlateCarree(central_longitude=345), \
                                 xlocator=np.concatenate([np.linspace(-50,0,6), np.linspace(10,20,2)]), \
                                 ylocator=[-20, -10, 0, 10, 20])

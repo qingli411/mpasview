@@ -676,9 +676,6 @@ class MPASOMap:
         if region == 'Global' and ptype == 'pcolor':
             warnings.warn('\'pcolor\' on \'Global\' region not supported, using \'contourf\' instead...')
             ptype = 'contourf'
-        # use curret axis if not specified
-        if axis is None:
-            axis = plt.gca()
         # basemap
         m = plot_basemap(region=region, axis=axis)
         (lonmin, lonmax, latmin, latmax) = get_info_region(region)
@@ -726,7 +723,7 @@ class MPASOMap:
             if lon_wrapping:
                 lon = np.where(lon < dlon_wrapping, lon+360., lon)
             xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), lon, lat).T
-            fig = plt.tricontourf(xx, yy, data, levels=levels, extend='both',
+            fig = m.tricontourf(xx, yy, data, levels=levels, extend='both',
                         norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
             if self.mesh is not None:
                 # fill nan
