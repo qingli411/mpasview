@@ -12,6 +12,7 @@ import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+import cartopy.crs as ccrs
 from .plot import *
 from .utils import *
 
@@ -666,7 +667,7 @@ class MPASOMap:
         :cmap:      (str, optional) colormap, viridis by default
         :colorbar:  (bool, optional) do not add colorbar if False
         :**kwargs:  (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
-        :return:    (mpl_toolkits.basemap.Basemap) figure handle
+        :return:    figure handle
 
         """
         # check input
@@ -691,8 +692,6 @@ class MPASOMap:
             # region mask
             if region == 'Global':
                 region_mask = np.full(data.shape, True, dtype=bool)
-                lon  = np.where(lon < m.lonmin, lon+360., lon)
-                lon  = np.where(lon > m.lonmax, lon-360., lon)
             else:
                 if lonmax > 360.:
                     lon_wrapping = True
@@ -726,8 +725,8 @@ class MPASOMap:
             # contourf plot
             if lon_wrapping:
                 lon = np.where(lon < dlon_wrapping, lon+360., lon)
-            xx, yy = m(lon, lat)
-            fig = m.contourf(xx, yy, data, tri=True, levels=levels, extend='both',
+            xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), lon, lat).T
+            fig = plt.tricontourf(xx, yy, data, levels=levels, extend='both',
                         norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
             if self.mesh is not None:
                 # fill nan
@@ -739,8 +738,8 @@ class MPASOMap:
                     yvertex = self.mesh.yvertex
                     nedges_cell = self.mesh.nedges_cell[fill_mask]
                     vertices_cell = self.mesh.vertices_cell[fill_mask,:]
-                    xx, yy = m(xvertex, yvertex)
-                    ug_pcolor_cell(axis=m.ax,
+                    xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), xvertex, yvertex).T
+                    ug_pcolor_cell(axis=m,
                             vertexid=vertexid, xvertex=xx, yvertex=yy,
                             nedges_cell=nedges_cell, vertices_cell=vertices_cell,
                             linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
@@ -751,8 +750,8 @@ class MPASOMap:
                         xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
                     ycell = self.mesh.ycell
                     cells_vertex = self.mesh.cells_vertex[fill_mask,:]
-                    xx, yy = m(xcell, ycell)
-                    ug_pcolor_vertex(axis=m.ax, data=data,
+                    xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), xcell, ycell).T
+                    ug_pcolor_vertex(axis=m, data=data,
                             cellid=cellid, xcell=xx, ycell=yy,
                             cells_vertex=cells_vertex,
                             linewidth=0.8, facecolors='lightgray', edgecolors='lightgray', alpha=1.0)
@@ -766,8 +765,8 @@ class MPASOMap:
                     yvertex = self.mesh.yvertex
                     nedges_cell = self.mesh.nedges_cell[mask]
                     vertices_cell = self.mesh.vertices_cell[mask,:]
-                    xx, yy = m(xvertex, yvertex)
-                    fig = ug_pcolor_cell(axis=m.ax, data=data,
+                    xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), xvertex, yvertex).T
+                    fig = ug_pcolor_cell(axis=m, data=data,
                             vertexid=vertexid, xvertex=xx, yvertex=yy,
                             nedges_cell=nedges_cell, vertices_cell=vertices_cell,
                             linewidth=0.1, norm=norm, cmap=plt.cm.get_cmap(cmap),
@@ -779,8 +778,8 @@ class MPASOMap:
                         xcell = np.where(xcell < dlon_wrapping, xcell+360., xcell)
                     ycell = self.mesh.ycell
                     cells_vertex = self.mesh.cells_vertex[mask,:]
-                    xx, yy = m(xcell, ycell)
-                    fig = ug_pcolor_vertex(axis=m.ax, data=data,
+                    xx, yy, _ = m.projection.transform_points(ccrs.PlateCarree(), xcell, ycell).T
+                    fig = ug_pcolor_vertex(axis=m, data=data,
                             cellid=cellid, xcell=xx, ycell=yy,
                             cells_vertex=cells_vertex,
                             linewidth=0.1, norm=norm, cmap=plt.cm.get_cmap(cmap),
@@ -789,7 +788,7 @@ class MPASOMap:
                 raise ValueError('Plot type \'{:s}\' not supported'.format(ptype))
         # add colorbar
         if colorbar:
-            cb = m.colorbar(fig, ax=axis)
+            cb = plt.colorbar(fig, ax=m)
             cb_label = '\n'.join(textwrap.wrap('{} ({})'.format(self.name, self.units), 30))
             cb.set_label(cb_label)
             cb.formatter.set_powerlimits((-4, 4))
@@ -905,7 +904,7 @@ class MPASODomain:
         :mark_colors: (list of string) list of color names for highlighted cells/vertices
         :swap_xy:     (bool, optional) swap x- and y-axes
         :**kwargs:    (keyword arguments, optional) passed along to the contourf or PatchCollection constructor
-        :return:      (mpl_toolkits.basemap.Basemap) figure handle
+        :return:      figure handle
 
         """
         # check input

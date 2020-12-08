@@ -4,7 +4,8 @@
 
 import numpy as np
 from scipy import spatial
-from mpl_toolkits.basemap import Basemap
+import cartopy.crs as ccrs
+from cartopy.mpl.geoaxes import GeoAxes
 from .plot import *
 
 #--------------------------------
@@ -72,36 +73,35 @@ class CellPath:
     def project_cell_center(self, axis, **kwargs):
         """Project the cell centers along a path on axis
 
-        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :axis:  (matplotlib.axes or cartopy.mpl.geoaxes.GeoAxes) axis to project the path
 
         """
-        if isinstance(axis, Basemap):
-            xx, yy = axis(self.xcell, self.ycell)
-            out = axis.plot(xx, yy, **kwargs)
+        if isinstance(axis, GeoAxes):
+            xx, yy, _ = axis.projection.transform_points(ccrs.PlateCarree(),
+                        np.array(self.xcell), np.array(self.ycell)).T
         else:
-            out = axis.plot(self.xcell, self.ycell, **kwargs)
+            xx, yy = self.xcell, self.ycell
+        out = axis.plot(xx, yy, **kwargs)
         return out
 
     def project_cell_filled(self, axis, mesh, **kwargs):
         """Project the cells along a path on axis
 
-        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :axis:  (matplotlib.axes or cartopy.mpl.geoaxes.GeoAxes) axis to project the path
         :mesh:  (mpasview.data.MPASMesh) mesh object
 
         """
         nedges_cell = mesh.nedges_cell[self.icell]
         vertices_cell = mesh.vertices_cell[self.icell,:]
-        if isinstance(axis, Basemap):
-            xx, yy = axis(mesh.xvertex, mesh.yvertex)
-            out = ug_pcolor_cell(axis=axis.ax,
-                    vertexid=mesh.vertexid, xvertex=xx, yvertex=yy,
-                    nedges_cell=nedges_cell, vertices_cell=vertices_cell,
-                    **kwargs)
+        if isinstance(axis, GeoAxes):
+            xx, yy, _ = axis.projection.transform_points(ccrs.PlateCarree(),
+                        np.array(mesh.xvertex), np.array(mesh.yvertex)).T
         else:
-            out = ug_pcolor_cell(axis=axis,
-                    vertexid=mesh.vertexid, xvertex=mesh.xvertex, yvertex=mesh.yvertex,
-                    nedges_cell=nedges_cell, vertices_cell=vertices_cell,
-                    **kwargs)
+            xx, yy = mesh.xvertex, mesh.yvertex
+        out = ug_pcolor_cell(axis=axis,
+                vertexid=mesh.vertexid, xvertex=xx, yvertex=yy,
+                nedges_cell=nedges_cell, vertices_cell=vertices_cell,
+                **kwargs)
         return out
 
 class EdgePath:
@@ -184,42 +184,45 @@ class EdgePath:
     def project_edge_center(self, axis, s=1, **kwargs):
         """Project the edge centers along a path on axis
 
-        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :axis:  (matplotlib.axes or cartopy.mpl.geoaxes.GeoAxes) axis to project the path
         :s:     (str) size of the scatter
 
         """
-        if isinstance(axis, Basemap):
-            xx, yy = axis(self.xedge, self.yedge)
-            out = axis.scatter(xx, yy, s=s, **kwargs)
+        if isinstance(axis, GeoAxes):
+            xx, yy, _ = axis.projection.transform_points(ccrs.PlateCarree(),
+                        np.array(self.xedge), np.array(self.yedge)).T
         else:
-            out = axis.scatter(self.xedge, self.yedge, s=s, **kwargs)
+            xx, yy = self.xedge, self.yedge
+        out = axis.scatter(xx, yy, s=s, **kwargs)
         return out
 
     def project_vertex(self, axis, s=1, **kwargs):
         """Project the vertices along a path on axis
 
-        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :axis:  (matplotlib.axes or cartopy.mpl.geoaxes.GeoAxes) axis to project the path
         :s:     (str) size of the scatter
 
         """
-        if isinstance(axis, Basemap):
-            xx, yy = axis(self.xvertex, self.yvertex)
-            out = axis.scatter(xx, yy, s=s, **kwargs)
+        if isinstance(axis, GeoAxes):
+            xx, yy, _ = axis.projection.transform_points(ccrs.PlateCarree(),
+                        np.array(self.xvertex), np.array(self.yvertex)).T
         else:
-            out = axis.scatter(self.xvertex, self.yvertex, s=s, **kwargs)
+            xx, yy = self.xvertex, self.yvertex
+        out = axis.scatter(xx, yy, s=s, **kwargs)
         return out
 
     def project_edge(self, axis, **kwargs):
         """Project the edges along a path on axis
 
-        :axis:  (matplotlib.axes or mpl_toolkits.basemap.Basemap) axis to project the path
+        :axis:  (matplotlib.axes or cartopy.mpl.geoaxes.GeoAxes) axis to project the path
 
         """
-        if isinstance(axis, Basemap):
-            xx, yy = axis(self.xvertex, self.yvertex)
-            out = axis.plot(xx, yy, **kwargs)
+        if isinstance(axis, GeoAxes):
+            xx, yy, _ = axis.projection.transform_points(ccrs.PlateCarree(),
+                        np.array(self.xvertex), np.array(self.yvertex)).T
         else:
-            out = axis.plot(self.xvertex, self.yvertex, **kwargs)
+            xx, yy = self.xvertex, self.yvertex
+        out = axis.plot(xx, yy, **kwargs)
         return out
 
 #--------------------------------
