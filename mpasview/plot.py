@@ -77,10 +77,10 @@ def _plot_basemap_arctic(axis=None):
     return m
 
 def _plot_basemap_region(
-        lon_ll,
-        lat_ll,
-        lon_ur,
-        lat_ur,
+        lon_min,
+        lat_min,
+        lon_max,
+        lat_max,
         projection,
         axis=None,
         xlocator=None,
@@ -89,10 +89,10 @@ def _plot_basemap_region(
     """Plot basemap for a particular region
 
     :axis:          (matplotlib.axes, optional) axis to plot the figure on
-    :lon_ll:        (float) longitude at lower-left in degrees
-    :lat_ll:        (float) latitude at lower-left in degrees
-    :lon_ur:        (float) longitude at upper-right in degrees
-    :lat_ur:        (float) latitude at upper-right in degrees
+    :lon_min:       (float) minimum longitude in degrees
+    :lat_min:       (float) minimum latitude in degrees
+    :lon_max:       (float) maximum longitude in degrees
+    :lat_max:       (float) maximum latitude in degrees
     :projection:    (cartopy.crs.Projection) projection type
     :xlocator:      (array-like) x tick locations
     :ylocator:      (array-like) y tick locations
@@ -100,14 +100,12 @@ def _plot_basemap_region(
 
     """
     # regional map
-    lon_c = 0.5*(lon_ll+lon_ur)
-    lat_c = 0.5*(lat_ll+lat_ur)
     if axis is None:
         m = plt.axes(projection=projection)
     else:
         m = axis
         m.projection = projection
-    m.set_extent([lon_ll, lon_ur, lat_ll, lat_ur], ccrs.PlateCarree())
+    m.set_extent([lon_min, lon_max, lat_min, lat_max], ccrs.PlateCarree())
     m.add_feature(cfeature.LAND, zorder=1, edgecolor='black', facecolor='gray')
     gl = m.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
     if xlocator is not None:
@@ -123,8 +121,8 @@ def _plot_basemap_labsea(axis):
     """Plot basemap for Labrador Sea
 
     """
-    m = _plot_basemap_region(axis=axis, lon_ll=296.0, lat_ll=40.0, \
-                             lon_ur=336.0, lat_ur=70.0, \
+    m = _plot_basemap_region(axis=axis, lon_min=296.0, lat_min=40.0, \
+                             lon_max=336.0, lat_max=70.0, \
                              projection=ccrs.Orthographic(central_longitude=316.0, central_latitude=55), \
                              xlocator=np.linspace(-80,-30,6), \
                              ylocator=np.linspace(40,65,6))
@@ -138,8 +136,8 @@ def _plot_basemap_tropicalpacific(axis):
     """Plot basemap for Tropical Pacific
 
     """
-    return _plot_basemap_region(axis=axis, lon_ll=130.0, lat_ll=-20.0, \
-                                lon_ur=290.0, lat_ur=20.0, projection=ccrs.PlateCarree(central_longitude=210), \
+    return _plot_basemap_region(axis=axis, lon_min=130.0, lat_min=-20.0, \
+                                lon_max=290.0, lat_max=20.0, projection=ccrs.PlateCarree(central_longitude=210), \
                                 xlocator=np.concatenate([np.linspace(130,180,6), np.linspace(-190,-70,13)]), \
                                 ylocator=[-20, -10, 0, 10, 20])
 
@@ -147,8 +145,8 @@ def _plot_basemap_tropicalpacific_small(axis):
     """Plot basemap for Tropical Pacific (small)
 
     """
-    return _plot_basemap_region(axis=axis, lon_ll=160.0, lat_ll=-10.0, \
-                                lon_ur=280.0, lat_ur=10.0, projection=ccrs.PlateCarree(central_longitude=220), \
+    return _plot_basemap_region(axis=axis, lon_min=159.9, lat_min=-10.1, \
+                                lon_max=280.1, lat_max=10.1, projection=ccrs.PlateCarree(central_longitude=220), \
                                 xlocator=np.concatenate([np.linspace(160,180,3), np.linspace(-190,-80,12)]), \
                                 ylocator=[-10, 0, 10])
 
@@ -156,8 +154,8 @@ def _plot_basemap_tropicalatlantic(axis):
     """Plot basemap for Tropical Atlantic
 
     """
-    return _plot_basemap_region(axis=axis, lon_ll=310.0, lat_ll=-20.0, \
-                                lon_ur=380.0, lat_ur=20.0, projection=ccrs.PlateCarree(central_longitude=345), \
+    return _plot_basemap_region(axis=axis, lon_min=310.0, lat_min=-20.0, \
+                                lon_max=380.0, lat_max=20.0, projection=ccrs.PlateCarree(central_longitude=345), \
                                 xlocator=np.concatenate([np.linspace(-50,0,6), np.linspace(10,20,2)]), \
                                 ylocator=[-20, -10, 0, 10, 20])
 
