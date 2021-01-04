@@ -232,8 +232,12 @@ class MPASMesh:
 
         """
         # find indices of endpoints
-        idxP0 = get_index_xy(xP0, yP0, self.xvertex, self.yvertex)
-        idxP1 = get_index_xy(xP1, yP1, self.xvertex, self.yvertex)
+        if self.on_sphere:
+            idxP0 = get_index_lonlat(xP0, yP0, self.xvertex, self.yvertex)
+            idxP1 = get_index_lonlat(xP1, yP1, self.xvertex, self.yvertex)
+        else:
+            idxP0 = get_index_xy(xP0, yP0, self.xvertex, self.yvertex)
+            idxP1 = get_index_xy(xP1, yP1, self.xvertex, self.yvertex)
         print('Vertex closest to P0: {:8.5f} {:8.5f}'.format(self.xvertex[idxP0], self.yvertex[idxP0]))
         print('Vertex closest to P1: {:8.5f} {:8.5f}'.format(self.xvertex[idxP1], self.yvertex[idxP1]))
         # find reference points
@@ -286,8 +290,12 @@ class MPASMesh:
 
         """
         # find indices of endpoints
-        idxP0 = get_index_xy(xP0, yP0, self.xcell, self.ycell)
-        idxP1 = get_index_xy(xP1, yP1, self.xcell, self.ycell)
+        if self.on_sphere:
+            idxP0 = get_index_lonlat(xP0, yP0, self.xcell, self.ycell)
+            idxP1 = get_index_lonlat(xP1, yP1, self.xcell, self.ycell)
+        else:
+            idxP0 = get_index_xy(xP0, yP0, self.xcell, self.ycell)
+            idxP1 = get_index_xy(xP1, yP1, self.xcell, self.ycell)
         print('Cell closest to P0: {:8.5f} {:8.5f}'.format(self.xcell[idxP0], self.ycell[idxP0]))
         print('Cell closest to P1: {:8.5f} {:8.5f}'.format(self.xcell[idxP1], self.ycell[idxP1]))
         # find reference points

@@ -486,6 +486,45 @@ def get_path_edge(
 # utility
 #--------------------------------
 
+def get_index_lonlat(
+        loni,
+        lati,
+        lon_arr,
+        lat_arr,
+        search_range=5.0,
+        ):
+    """Get the index of the location (loni, lati) in an array of
+       locations (lon_arr, lat_arr)
+
+    :loni:          (float) longitude of target location
+    :lati:          (float) latitude of target location
+    :lon_arr:       (numpy array) array of longitude
+    :lat_arr:       (numpy array) array of latitude
+    :search_range:  (float, optional) range of lon and lat for faster search
+
+    """
+    lon_mask = (lon_arr>=loni-search_range) & (lon_arr<=loni+search_range)
+    lat_mask = (lat_arr>=lati-search_range) & (lat_arr<=lati+search_range)
+    lonlat_mask = lon_mask & lat_mask
+    lon_sub = lon_arr[lonlat_mask]
+    lat_sub = lat_arr[lonlat_mask]
+    # scale the distance in the zonal direction by the latitude, centered on
+    # the target location
+    lon_sub_r = loni + (lon_sub-loni)*np.cos(np.radians(lat_sub))
+    pts = np.array([loni,lati])
+    tree = spatial.KDTree(list(zip(lon_sub_r, lat_sub)))
+    p = tree.query(pts)
+    cidx = p[1]
+    idx = np.argwhere(lon_arr==lon_sub[cidx])
+    if idx.size > 1:
+        for i in idx.squeeze():
+            if lat_arr[i] == lat_sub[cidx]:
+                out = i
+                break
+    else:
+        out = idx[0][0]
+    return out
+
 def get_index_xy(
         xi,
         yi,
