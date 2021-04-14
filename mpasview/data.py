@@ -945,6 +945,30 @@ class MPASODomain:
                             norm=norm, cmap=plt.cm.get_cmap(cmap), **kwargs)
         else:
             if ptype == 'pcolor':
+                dv_edge = self.mesh.dv_edge
+                dv_edge_small = 1.0
+                dv_edge_max = dv_edge.max() + dv_edge_small
+                cellid = self.mesh.cellid
+                vertexid = self.mesh.vertexid
+                edgeid = self.mesh.edgeid
+                if swap_xy:
+                    xperiod = self.mesh.yperiod
+                    yperiod = self.mesh.xperiod
+                    xvertex = self.mesh.yvertex
+                    yvertex = self.mesh.xvertex
+                    xcell = self.mesh.ycell
+                    ycell = self.mesh.xcell
+                    xedge = self.mesh.yedge
+                    yedge = self.mesh.xedge
+                else:
+                    xperiod = self.mesh.xperiod
+                    yperiod = self.mesh.yperiod
+                    xvertex = self.mesh.xvertex
+                    yvertex = self.mesh.yvertex
+                    xcell = self.mesh.xcell
+                    ycell = self.mesh.ycell
+                    xedge = self.mesh.xedge
+                    yedge = self.mesh.yedge
                 if self.position == 'cell':
                     if self.mask is not None:
                         nedges_cell = self.mesh.nedges_cell[self.mask]
@@ -954,32 +978,38 @@ class MPASODomain:
                         vertices_cell = self.mesh.vertices_cell
                     if self.mesh.is_periodic:
                         fig = ug_pcolor_cell_periodic(axis=axis, data=data,
-                                xperiod=self.mesh.xperiod,
-                                yperiod=self.mesh.yperiod,
-                                vertexid=self.mesh.vertexid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
-                                xcell=self.mesh.xcell,
-                                ycell=self.mesh.ycell,
-                                dv_edge=self.mesh.dv_edge,
+                                xperiod=xperiod,
+                                yperiod=yperiod,
+                                vertexid=vertexid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
+                                xcell=xcell,
+                                ycell=ycell,
+                                dv_edge=dv_edge,
                                 nedges_cell=nedges_cell,
                                 vertices_cell=vertices_cell,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
+                        if swap_xy:
+                            axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+dv_edge_max])
+                            axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+2.7*dv_edge_max])
+                        else:
+                            axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+2.7*dv_edge_max])
+                            axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
                     else:
                         fig = ug_pcolor_cell(axis=axis, data=data,
-                                vertexid=self.mesh.vertexid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
+                                vertexid=vertexid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
                                 nedges_cell=nedges_cell,
                                 vertices_cell=vertices_cell,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
                     for idx, color in zip(mark_ids, mark_colors):
                         ug_pcolor_cell(axis=plt.gca(),
-                                vertexid=self.mesh.vertexid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
+                                vertexid=vertexid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
                                 nedges_cell=self.mesh.nedges_cell[idx:idx+1],
                                 vertices_cell=self.mesh.vertices_cell[idx:idx+1,:],
                                 linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
@@ -990,30 +1020,32 @@ class MPASODomain:
                         cells_vertex = self.mesh.cells_vertex
                     if self.mesh.is_periodic:
                         fig = ug_pcolor_vertex_periodic(axis=axis, data=data,
-                                xperiod=self.mesh.xperiod,
-                                yperiod=self.mesh.yperiod,
-                                cellid=self.mesh.cellid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
-                                xcell=self.mesh.xcell,
-                                ycell=self.mesh.ycell,
-                                dv_edge=self.mesh.dv_edge,
+                                xperiod=xperiod,
+                                yperiod=yperiod,
+                                cellid=cellid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
+                                xcell=xcell,
+                                ycell=ycell,
+                                dv_edge=dv_edge,
                                 cells_vertex=cells_vertex,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
+                        axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+dv_edge_max])
+                        axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
                     else:
                         fig = ug_pcolor_vertex(axis=axis, data=data,
-                                cellid=self.mesh.cellid,
-                                xcell=self.mesh.xcell,
-                                ycell=self.mesh.ycell,
+                                cellid=cellid,
+                                xcell=xcell,
+                                ycell=ycell,
                                 cells_vertex=cells_vertex,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
                     for idx, color in zip(mark_ids, mark_colors):
                         ug_pcolor_vertex(axis=plt.gca(),
-                                cellid=self.mesh.cellid,
-                                xcell=self.mesh.xcell,
-                                ycell=self.mesh.ycell,
+                                cellid=cellid,
+                                xcell=xcell,
+                                ycell=ycell,
                                 cells_vertex=self.mesh.cells_vertex[idx:idx+1],
                                 linewidth=0.1, facecolors=color, edgecolors=color, alpha=1.0)
                 elif self.position == 'edge':
@@ -1023,22 +1055,28 @@ class MPASODomain:
                         vertices_edge = self.mesh.vertices_edge
                     if self.mesh.is_periodic:
                         fig = ug_pcolor_edge_periodic(axis=axis, data=data,
-                                xperiod=self.mesh.xperiod,
-                                yperiod=self.mesh.yperiod,
-                                edgeid=self.mesh.edgeid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
-                                xedge=self.mesh.xedge,
-                                yedge=self.mesh.yedge,
-                                dv_edge=self.mesh.dv_edge,
+                                xperiod=xperiod,
+                                yperiod=yperiod,
+                                edgeid=edgeid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
+                                xedge=xedge,
+                                yedge=yedge,
+                                dv_edge=dv_edge,
                                 vertices_edge=vertices_edge,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)
+                        if swap_xy:
+                            axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+dv_edge_max])
+                            axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+1.8*dv_edge_max])
+                        else:
+                            axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+1.8*dv_edge_max])
+                            axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
                     else:
                         fig = ug_pcolor_edge(axis=axis, data=data,
-                                edgeid=self.mesh.edgeid,
-                                xvertex=self.mesh.xvertex,
-                                yvertex=self.mesh.yvertex,
+                                edgeid=edgeid,
+                                xvertex=xvertex,
+                                yvertex=yvertex,
                                 vertices_edge=vertices_edge,
                                 norm=norm, cmap=plt.cm.get_cmap(cmap),
                                 **kwargs)

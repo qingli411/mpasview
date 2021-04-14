@@ -380,10 +380,6 @@ def ug_pcolor_cell_periodic(
     if len(patches) > 64:
         pc.set_linewidth(0.1)
     fig = axis.add_collection(pc)
-    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+2.7*dv_edge_max])
-    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
-    axis.set_xlabel('x')
-    axis.set_ylabel('y')
     return fig
 
 def ug_pcolor_vertex_periodic(
@@ -462,10 +458,6 @@ def ug_pcolor_vertex_periodic(
     if len(patches) > 64:
         pc.set_linewidth(0.1)
     fig = axis.add_collection(pc)
-    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+dv_edge_max])
-    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
-    axis.set_xlabel('x')
-    axis.set_ylabel('y')
     return fig
 
 def ug_pcolor_edge_periodic(
@@ -538,8 +530,4 @@ def ug_pcolor_edge_periodic(
     if data is not None:
         lc.set_array(data)
     fig = axis.add_collection(lc)
-    axis.set_xlim([xvertex.min()-dv_edge_max, xvertex.max()+1.8*dv_edge_max])
-    axis.set_ylim([yvertex.min()-dv_edge_max, yvertex.max()+dv_edge_max])
-    axis.set_xlabel('x')
-    axis.set_ylabel('y')
     return fig
