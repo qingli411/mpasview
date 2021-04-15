@@ -374,7 +374,7 @@ class MPASOData:
         """
         summary = [str(self.__class__)+':']
         summary.append('{:>12s}: {:s}'.format('data path', self._filepath))
-        summary.append('{:>12s}: {:s}'.format('mesh path', self._filepath))
+        summary.append('{:>12s}: {:s}'.format('mesh path', self._filepath_mesh))
         if self.time is not None:
             if self.time.size > 4:
                 summary.append('{:>12s}: [{}...{}]'.format('time', self.time[0], self.time[-1]))
