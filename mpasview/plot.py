@@ -16,12 +16,12 @@ from matplotlib.patches import Polygon
 
 def plot_basemap(
         region='Global',
-        axis=None,
+        **kwargs,
         ):
     """Plot basemap
 
     :region:    (str) region name
-    :axis:      (matplotlib.axes, optional) axis to plot the figure on
+    :**kwargs:  keyword arguments
     :return:    (cartopy.mpl.geoaxes.GeoAxes)
 
     """
@@ -33,9 +33,10 @@ def plot_basemap(
             'TropicalPacific': _plot_basemap_tropicalpacific,
             'TropicalPacificSmall': _plot_basemap_tropicalpacific_small,
             'TropicalAtlantic': _plot_basemap_tropicalatlantic,
+            'Custom': _plot_basemap_region,
             }
     if region in switcher.keys():
-        return switcher.get(region)(axis)
+        return switcher.get(region)(**kwargs)
     else:
         raise ValueError('Region \'{:s}\' not found.\n'.format(region) \
                 + '- Supported region names:\n' \
@@ -117,7 +118,7 @@ def _plot_basemap_region(
     gl.rotate_labels = False
     return m
 
-def _plot_basemap_labsea(axis):
+def _plot_basemap_labsea(axis=None):
     """Plot basemap for Labrador Sea
 
     """
@@ -132,7 +133,7 @@ def _plot_basemap_labsea(axis):
     gl.ylocator = mticker.FixedLocator([70])
     return m
 
-def _plot_basemap_tropicalpacific(axis):
+def _plot_basemap_tropicalpacific(axis=None):
     """Plot basemap for Tropical Pacific
 
     """
@@ -141,7 +142,7 @@ def _plot_basemap_tropicalpacific(axis):
                                 xlocator=np.concatenate([np.linspace(130,180,6), np.linspace(-190,-70,13)]), \
                                 ylocator=[-20, -10, 0, 10, 20])
 
-def _plot_basemap_tropicalpacific_small(axis):
+def _plot_basemap_tropicalpacific_small(axis=None):
     """Plot basemap for Tropical Pacific (small)
 
     """
@@ -150,7 +151,7 @@ def _plot_basemap_tropicalpacific_small(axis):
                                 xlocator=np.concatenate([np.linspace(160,180,3), np.linspace(-190,-80,12)]), \
                                 ylocator=[-10, 0, 10])
 
-def _plot_basemap_tropicalatlantic(axis):
+def _plot_basemap_tropicalatlantic(axis=None):
     """Plot basemap for Tropical Atlantic
 
     """
